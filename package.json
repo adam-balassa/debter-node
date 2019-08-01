@@ -17,7 +17,7 @@
   "scripts": {
     "start:dev": "ts-node-dev --ignore-watch node_modules src/index.ts",
     "test": "jest",
-    "start": "node dist/index.ts",
+    "start": "node dist/index.js",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
     "build": "tsc",
