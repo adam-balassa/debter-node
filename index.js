@@ -1,27 +1,13 @@
 const express = require('express')
 const app = express()
-var bodyParser = require('body-parser')
-const config = require('./config');
 
-app.use(bodyParser.json({limit: '50mb'}))
-app.use(bodyParser.urlencoded({limit: '50mb', extended: true}))
-app.set('trust proxy', 1)
+app.set('port', (process.env.PORT || 3000))
+app.use(express.static(__dirname + '/public'))
 
-app.use(express.static('assets'))
-app.set('view engine', 'ejs')
-app.set('views', 'view')
-
-app.get('/', (req, res) => {
-    res.send('Mizu');
+app.get('/', function(request, response) {
+  response.send('Hello World!')
 })
 
-app.use(function (req, res) {
-  res.redirect('/404')
+app.listen(app.get('port'), function() {
+  console.log("Node app is running at localhost:" + app.get('port'))
 })
-
-
-app.listen(config.port, () => {
-    console.log('Server started on port ' + config.port);
-});
-
-module.exports = app;
