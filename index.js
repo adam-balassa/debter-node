@@ -1,6 +1,7 @@
 const express = require('express')
 const app = express()
 var bodyParser = require('body-parser')
+const config = require('./config');
 
 app.use(bodyParser.json({limit: '50mb'}))
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}))
@@ -19,8 +20,8 @@ app.use(function (req, res) {
 })
 
 
-app.listen(3000, 'localhost', () => {
-    console.log('Server started on port 3000');
+app.listen(config.port, 'localhost', () => {
+    console.log('Server started on port ' + config.port);
 });
 
 module.exports = app;
