@@ -20,7 +20,7 @@ app.use(function (req, res) {
 })
 
 
-app.listen(config.port, 'localhost', () => {
+app.listen(config.port, () => {
     console.log('Server started on port ' + config.port);
 });
 
