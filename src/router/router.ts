@@ -38,6 +38,19 @@ export class Routes {
         .catch(error => { res.send(error); });
     });
 
+    this.router.post('/payment', (req: Request, res: Response) => {
+      this.controller.uploadPayment({
+        roomKey: req.body.roomKey,
+        value: req.body.payment.value,
+        currency: req.body.payment.currency,
+        memberId: req.body.payment.memberId,
+        included: req.body.payment.included,
+        note: req.body.payment.note
+      })
+        .then(result => res.send(result))
+        .catch(error => res.send(error));
+    });
+
     this.router.delete('/payment', (req: Request, res: Response) => {
       this.controller.deletePayment({ paymentId: req.body.paymentId, roomKey: req.body.roomKey })
         .then(result => { res.send(result); })

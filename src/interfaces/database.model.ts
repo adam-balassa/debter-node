@@ -23,7 +23,7 @@ export interface DPayment {
   value: number;
   currency: string;
   note: string;
-  related_to: string;
+  related_to: string | null;
   date: Date;
   active: boolean;
   member_id: string;

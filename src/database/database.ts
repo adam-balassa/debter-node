@@ -24,7 +24,7 @@ export class Database {
     });
   }
 
-  public runQuery(query: string, ...parameters: (string | undefined)[]): Promise<any> {
+  public runQuery(query: string, ...parameters: (string | undefined | null)[]): Promise<any> {
     return new Promise((resolve, reject) => {
       this.connection.query(query, parameters, (error: any, result: any, fields: any) => {
         if (error) {

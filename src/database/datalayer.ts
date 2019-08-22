@@ -107,7 +107,7 @@ export class DataLayer {
         const members: Member[] = dMembers.map<Member>((member: DMember): Member => {
           return { id: member.id as string, name: member.alias };
         });
-        const payments: Payment[] = dPayments.map<Payment>((payment: DPayment): Payment => {
+        const payments: Payment[] = dPayments.filter(payment => payment.related_to !== null).map<Payment>((payment: DPayment): Payment => {
           return { id: payment.id as string, value: payment.value, currency: payment.currency,
             realValue: payment.value, memberId: payment.member_id as string, fromId: payment.related_to as string,
             note: payment.note, date: payment.date as Date, active: payment.active as boolean };
@@ -144,9 +144,9 @@ export class DataLayer {
   public uploadPayments(payments: DPayment[]): Promise<Response> {
     return new Promise(async (resolve, reject) => {
       try {
-        const paymentsString: string[] = [];
+        const paymentsString: (string | null | undefined)[] = [];
         payments.forEach(p => { paymentsString.push(
-            ...[p.id as string, `${p.value}`, p.currency, p.note, p.related_to, this.parseDate(p.date), p.active ? '1' : '0', p.member_id]
+            ...[p.id, `${p.value}`, p.currency, p.note, p.related_to, this.parseDate(p.date), p.active ? '1' : '0', p.member_id]
             ); });
         const res = await this.database.runQuery(
           `INSERT INTO Payments (id, value, currency, note, related_to, date, active, member_id)
@@ -175,7 +175,7 @@ export class DataLayer {
           INNER JOIN Rooms ON Rooms.id = Members.room_id
           INNER JOIN Details ON Rooms.id = Details.room_id
           WHERE Rooms.room_key = ?
-          ORDER BY id`,
+          ORDER BY Members.id`,
             room.room_key
         );
         if (result.affectedRows < 1) throw null;
@@ -193,15 +193,15 @@ export class DataLayer {
       try {
         const deleteResult = await this.database.runQuery(
           `DELETE FROM Debts WHERE from_member IN (
-            SELECT member_id FROM Members
+            SELECT Members.id FROM Members
             INNER JOIN Rooms ON room_id = Rooms.id
-            WHERE Room.room_key = ?
+            WHERE Rooms.room_key = ?
           )`,
           roomKey
         );
         const debtsString: string[] = [];
         debts.forEach(e => {
-          debtsString.push(...[ e.id as string, e.from_member, e.to_member, `${e.value}`, e.currency ]);
+          debtsString.push(...[ e.from_member, e.to_member, `${e.value}`, e.currency ]);
         });
         const insertResult = await this.database.runQuery(
           `INSERT INTO Debts (from_member, to_member, value, currency)
