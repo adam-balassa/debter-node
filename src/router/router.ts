@@ -62,5 +62,11 @@ export class Routes {
         .then(result => { res.send(result); })
         .catch(error => { res.send(error); });
     });
+
+    this.router.post('/import', (req: Request, res: Response) => {
+      this.controller.refreshDebt(req.body.roomKey)
+        .then(result => { res.send(result); })
+        .catch(error => { res.send(error); });
+    });
   }
 }

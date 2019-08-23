@@ -1,9 +1,12 @@
-import { Success, Response, ServerError, ParameterNotProvided, Error } from '../interfaces/exceptions.model';
+import { Success, Response, ServerError, ParameterNotProvided, Error, DataError } from '../interfaces/exceptions.model';
 import { DataLayer } from '../database/datalayer';
 import { DRoom, DDetail, DMember, DDebt, DPayment } from '../interfaces/database.model';
 import { Room, Member, Payment, Debt } from '../interfaces/main.model';
 import { Arrangement, PositiveMember, NegativeMember, SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
 import { UploadablePayment } from '../interfaces/shared.model';
+import { readFile } from 'fs';
+import { join } from 'path';
+
 
 export class Controller {
 
@@ -56,6 +59,7 @@ export class Controller {
       try {
         const room: Room = await this.dataLayer.getDetails(data.roomKey);
         const { id, ...details } = room;
+        await this.dataLayer.refreshModified({room_id: id as string, last_modified: new Date()});
         resolve(new Success(details));
       }
       catch (error) {
@@ -65,6 +69,80 @@ export class Controller {
         this.dataLayer.close();
       }
     });
+  }
+
+  public deleteUnusedRooms(): Promise<Response> {
+    return new Promise(async (resolve, reject) => {
+      this.dataLayer = new DataLayer();
+      try {
+        const veryOldRoomBefore: number = 365 * 24 * 60 * 60 * 1000;
+        const oldRoomBefore: number = veryOldRoomBefore / 2;
+        const ids: string[] = (await this.dataLayer.getOldRooms(
+          new Date(Date.now() - veryOldRoomBefore), new Date(Date.now() - oldRoomBefore))).map(e => e.id);
+        if (ids.length > 0)
+          await this.dataLayer.deleteRooms(ids);
+        resolve(new Success('Rooms successfully deleted'));
+      } catch (error) {
+        console.log(error);
+        reject(error);
+      }
+      finally { this.dataLayer.close(); }
+    });
+  }
+
+  public import(): Promise<Response> {
+    this.dataLayer = new DataLayer(true);
+    return new Promise((resolve, reject) => {
+      readFile(join(__dirname, 'debter.json'), 'utf8', async (error, dataString) => {
+        if (error) return reject(new ServerError(error.message));
+        const data = JSON.parse(dataString);
+
+        const oldProjects: any[] = data.find((record: any) => record.name === 'projects').data;
+        const rooms: DRoom[] = oldProjects.map<DRoom>((project: any): DRoom => ({ id: this.generateId(), room_key: project.id }));
+
+        const oldDetails: any[] = data.find((record: any) => record.name === 'settings').data;
+        const details: DDetail[] = [];
+        for (let i = 0; i < oldProjects.length; i++) {
+          details.push({room_id: rooms[i].id, last_modified: new Date(oldProjects[i].modified * 1000), name: oldProjects[i].title });
+          let rounding = oldDetails.find(detail => detail.projectid === rooms[i].room_key && detail.type === 'rounding');
+          let defaultCurrency = oldDetails.find(detail => detail.projectid === rooms[i].room_key && detail.type === 'maincurrency');
+          if (rounding === undefined) rounding = {value: 1};
+          if (defaultCurrency === undefined) defaultCurrency = {value: 'HUF'};
+          details[i].rounding = rounding.value as number;
+          details[i].default_currency = defaultCurrency.value;
+        }
+
+        const oldMembers: any[] = data.find((record: any) => record.name === 'users').data;
+        const members: DMember[] = oldMembers.map<DMember>((user: any): DMember => ({ id: user.userid, alias: user.username,
+          room_id: (rooms.find(project => project.room_key === user.projectid) as DRoom).id
+        }));
+
+        const oldPayments: any[] = data.find((record: any) => record.name === 'payments').data;
+        const payments: DPayment[] = oldPayments.map<DPayment>((payment: any): DPayment => ({ id: payment.id,
+          value: payment.value, currency: payment.valuta, note: payment.note.substr(0, 29), date: new Date(payment.tme * 1000),
+          member_id: payment.userid, active: payment.discarded === '0',
+          related_to: payment.visible === '0' || payment.value < 0 && payment.note.length === 15 ? payment.note : null,
+        }));
+        payments.sort((a => a.related_to === null ? -1 : 1));
+
+        try {
+          await this.dataLayer.uploadMultipleRooms(rooms, details);
+          await this.dataLayer.addMultipleMembers(members);
+          await this.dataLayer.uploadPayments(payments);
+        }
+        catch (error) { console.log(error.message); }
+        finally { this.dataLayer.close(); }
+        resolve(new Success({}));
+
+      });
+    });
+  }
+
+  public refreshDebt(roomKey: string): Promise<any> {
+    this.dataLayer = new DataLayer(true);
+    const result = this.refreshDebts(roomKey);
+    result.finally(() => { this.dataLayer.close(); });
+    return result;
   }
 
   public loadEntireRoomData(data: {roomKey: string}): Promise<Response> {
@@ -115,18 +193,17 @@ export class Controller {
             member_id: data.included[0]
           });
         else
-          payments.push(...excludedMembers.map<DPayment>((member: DMember): DPayment => {
-            return {
-              id: this.generateId(),
-              value: excludedPaymentValue,
-              currency: data.currency,
-              note: data.note,
-              related_to: newPaymentId,
-              date: new Date(),
-              active: true,
-              member_id: member.id as string
-            };
-          }));
+          payments.push(...excludedMembers.map<DPayment>((member: DMember): DPayment => ({
+            id: this.generateId(),
+            value: excludedPaymentValue,
+            currency: data.currency,
+            note: data.note,
+            related_to: newPaymentId,
+            date: new Date(),
+            active: true,
+            member_id: member.id as string
+          })));
+
         await this.dataLayer.uploadPayments(payments);
 
         let index;
@@ -251,7 +328,6 @@ export class Controller {
       else if (debt < -rounding)  negativeMembers.push({ memberId: member.memberId, debt: -debt, arrangements: [] });
     });
     this.arrangeDebts(positiveMembers, negativeMembers, rounding);
-
     const debts: Debt[] = [];
     negativeMembers.forEach( member => {
       debts.push(...member.arrangements.map<Debt>((a): Debt => (
@@ -276,7 +352,7 @@ export class Controller {
           if (n === negativeMembers.length) return false;
           for (; p < positiveMembers.length && positiveMembers[p].debt >= negativeMembers[n].debt; ++p);
           if (p !== 0 && checkIfFits(positiveMembers[p - 1], negativeMembers[n], realRounding)) {
-            this.arrangeDebtAndResort(positiveMembers, p - 1, negativeMembers, n, positiveMembers[p].debt, realRounding);
+            this.arrangeDebtAndResort(positiveMembers, p - 1, negativeMembers, n, positiveMembers[p - 1].debt, realRounding);
             return true;
           }
           if (p === positiveMembers.length) return false;
@@ -286,10 +362,10 @@ export class Controller {
           return Math.abs(p.debt - n.debt) <= interval;
         }
       };
-      const checkForNegativeMemberArrangement = (): boolean => {
-        for (let n = 0; n < negativeMembers.length; ++n) {
-          if (negativeMembers[n].debt < positiveMembers[0].debt) {
-            this.arrangeDebtAndResort(positiveMembers, 0, negativeMembers, n, negativeMembers[n].debt, realRounding);
+      const checkForPositiveMemberArrangement = (): boolean => {
+        for (let p = 0; p < positiveMembers.length; ++p) {
+          if (positiveMembers[p].debt < negativeMembers[0].debt) {
+            this.arrangeDebtAndResort(positiveMembers, p, negativeMembers, 0, positiveMembers[p].debt, realRounding);
             return true;
           }
         }
@@ -298,8 +374,8 @@ export class Controller {
       while (positiveMembers.length > 0) {
         while (checkForPerfectFit() && positiveMembers.length > 0); // O(m^3)
         if (positiveMembers.length === 0) return;
-        if (!checkForNegativeMemberArrangement()) // O(m)
-          this.arrangeDebtAndResort(positiveMembers, 0, negativeMembers, 0, positiveMembers[0].debt, realRounding);
+        if (!checkForPositiveMemberArrangement()) // O(m)
+          this.arrangeDebtAndResort(positiveMembers, 0, negativeMembers, 0, negativeMembers[0].debt, realRounding);
       }
   }
 
@@ -307,6 +383,7 @@ export class Controller {
     positiveMembers: PositiveMember[], p: number,
     negativeMembers: NegativeMember[], n: number,
     value: number, rounding: number) {
+    value = Math.floor((value + rounding) / (2 * rounding)) * rounding * 2;
     negativeMembers[n].arrangements.push(
       { memberId: positiveMembers[p].memberId, value }
     );

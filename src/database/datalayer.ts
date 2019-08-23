@@ -17,6 +17,7 @@ export class DataLayer {
   public createNewRoom(room: DRoom, details: DDetail): Promise<Response> {
     return new Promise(async (resolve, reject) => {
       try {
+        console.log(room, details);
         const roomResult = await this.database.runQuery(
           'INSERT INTO Rooms SET room_key = ?, id = ?',
           room.room_key, room.id
@@ -35,6 +36,40 @@ export class DataLayer {
         reject(error);
       }
     });
+  }
+
+  uploadMultipleRooms(rooms: DRoom[], details: DDetail[]): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const roomsString: any[] = [];
+        rooms.forEach(r => { roomsString.push(
+            ...[r.id, r.room_key]
+        ); });
+        await this.database.runQuery(
+          `INSERT INTO Rooms (id, room_key)
+          VALUES ${ new Array(rooms.length).fill('(?,?)').join(',') }`,
+          ...roomsString
+        );
+
+        const detailsString: any[] = [];
+        details.forEach(d => { detailsString.push(
+            ...[d.name, d.room_id, d.default_currency, d.last_modified, d.rounding]
+        ); });
+        await this.database.runQuery(
+          `INSERT INTO Details (name, room_id, default_currency, last_modified, rounding)
+          VALUES ${ new Array(rooms.length).fill('(?,?,?,?,?)').join(',\n') }`,
+          ...detailsString
+        );
+        resolve();
+      } catch (error) { reject(error); }
+    });
+  }
+
+  public refreshModified(details: DDetail): Promise<Response> {
+    return this.database.runQuery(
+      'UPDATE Details SET last_modified = ? WHERE room_id = ?',
+      this.parseDate(details.last_modified as Date), details.room_id
+    );
   }
 
   public addMembersToRoom(members: DMember[], roomKey: string): Promise<Response> {
@@ -67,11 +102,28 @@ export class DataLayer {
     });
   }
 
+  public addMultipleMembers(members: DMember[]): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+          try {
+            const membersString: any[] = [];
+            members.forEach(m => { membersString.push(
+                ...[m.id, m.alias, m.room_id]
+            ); });
+            await this.database.runQuery(
+              `INSERT INTO Members (id, alias, user_id, room_id)
+              VALUES ${ new Array(members.length).fill('(?,?,NULL,?)').join(',\n') }`,
+              ...membersString
+            );
+            resolve();
+          } catch (error) { reject(error); }
+        });
+  }
+
   public getDetails(roomKey: string): Promise<Room> {
     return new Promise(async (resolve, reject) => {
       try {
         const result = await this.database.runQuery(
-          `SELECT name, rounding, default_currency, last_modified
+          `SELECT Rooms.id, name, rounding, default_currency, last_modified
           FROM Details
           INNER JOIN Rooms ON Rooms.id = room_id
           WHERE room_key=?`,
@@ -79,7 +131,7 @@ export class DataLayer {
         );
         if (result.length === 1)
           resolve({
-            id: '',
+            id: result[0].id,
             key: roomKey,
             rounding: result[0].rounding,
             defaultCurrency: result[0].default_currency,
@@ -93,6 +145,24 @@ export class DataLayer {
         reject(error);
       }
     });
+  }
+
+  public getOldRooms(lastModified: Date, lastModifiedIfArranged: Date): Promise<{id: string}[]> {
+    return this.database.runQuery(
+      `SELECT room_id FROM Details WHERE last_modified < ? OR Details.room_id IN(
+        SELECT Rooms.id FROM Rooms
+        INNER JOIN Members ON Members.room_id = Rooms.id
+        INNER JOIN Debts ON Debts.from_member = Members.id)
+      AND last_modified < ?`,
+        this.parseDate(lastModified), this.parseDate(lastModifiedIfArranged)
+    );
+  }
+
+  public deleteRooms(ids: string[]): Promise<any> {
+    return this.database.runQuery(
+      `DELETE FROM Rooms WHERE id IN (${new Array(ids.length).fill('?').join(',')})`,
+      ...ids
+    );
   }
 
   public getRoomData(room: DRoom): Promise<Response> {
@@ -217,6 +287,7 @@ export class DataLayer {
           )`,
           roomKey
         );
+        if (debts.length === 0) return resolve(new Success('All debts arranged'));
         const debtsString: any[] = [];
         debts.forEach(e => {
           debtsString.push(...[ e.from_member, e.to_member, e.value, e.currency, e.arranged ]);
@@ -285,7 +356,7 @@ export class DataLayer {
   }
 
   private parseDate(date: Date): string {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ` +
+    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ` +
       `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}:${('0' + date.getSeconds()).slice(-2)}`;
   }
 }
