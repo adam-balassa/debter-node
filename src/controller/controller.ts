@@ -4,8 +4,6 @@ import { DRoom, DDetail, DMember, DDebt, DPayment } from '../interfaces/database
 import { Room, Member, Payment, Debt } from '../interfaces/main.model';
 import { Arrangement, PositiveMember, NegativeMember, SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
 import { UploadablePayment } from '../interfaces/shared.model';
-import { readFile } from 'fs';
-import { join } from 'path';
 
 
 export class Controller {
@@ -88,61 +86,6 @@ export class Controller {
       }
       finally { this.dataLayer.close(); }
     });
-  }
-
-  public import(): Promise<Response> {
-    this.dataLayer = new DataLayer(true);
-    return new Promise((resolve, reject) => {
-      readFile(join(__dirname, 'debter.json'), 'utf8', async (error, dataString) => {
-        if (error) return reject(new ServerError(error.message));
-        const data = JSON.parse(dataString);
-
-        const oldProjects: any[] = data.find((record: any) => record.name === 'projects').data;
-        const rooms: DRoom[] = oldProjects.map<DRoom>((project: any): DRoom => ({ id: this.generateId(), room_key: project.id }));
-
-        const oldDetails: any[] = data.find((record: any) => record.name === 'settings').data;
-        const details: DDetail[] = [];
-        for (let i = 0; i < oldProjects.length; i++) {
-          details.push({room_id: rooms[i].id, last_modified: new Date(oldProjects[i].modified * 1000), name: oldProjects[i].title });
-          let rounding = oldDetails.find(detail => detail.projectid === rooms[i].room_key && detail.type === 'rounding');
-          let defaultCurrency = oldDetails.find(detail => detail.projectid === rooms[i].room_key && detail.type === 'maincurrency');
-          if (rounding === undefined) rounding = {value: 1};
-          if (defaultCurrency === undefined) defaultCurrency = {value: 'HUF'};
-          details[i].rounding = rounding.value as number;
-          details[i].default_currency = defaultCurrency.value;
-        }
-
-        const oldMembers: any[] = data.find((record: any) => record.name === 'users').data;
-        const members: DMember[] = oldMembers.map<DMember>((user: any): DMember => ({ id: user.userid, alias: user.username,
-          room_id: (rooms.find(project => project.room_key === user.projectid) as DRoom).id
-        }));
-
-        const oldPayments: any[] = data.find((record: any) => record.name === 'payments').data;
-        const payments: DPayment[] = oldPayments.map<DPayment>((payment: any): DPayment => ({ id: payment.id,
-          value: payment.value, currency: payment.valuta, note: payment.note.substr(0, 29), date: new Date(payment.tme * 1000),
-          member_id: payment.userid, active: payment.discarded === '0',
-          related_to: payment.visible === '0' || payment.value < 0 && payment.note.length === 15 ? payment.note : null,
-        }));
-        payments.sort((a => a.related_to === null ? -1 : 1));
-
-        try {
-          await this.dataLayer.uploadMultipleRooms(rooms, details);
-          await this.dataLayer.addMultipleMembers(members);
-          await this.dataLayer.uploadPayments(payments);
-        }
-        catch (error) { console.log(error.message); }
-        finally { this.dataLayer.close(); }
-        resolve(new Success({}));
-
-      });
-    });
-  }
-
-  public refreshDebt(roomKey: string): Promise<any> {
-    this.dataLayer = new DataLayer(true);
-    const result = this.refreshDebts(roomKey);
-    result.finally(() => { this.dataLayer.close(); });
-    return result;
   }
 
   public loadEntireRoomData(data: {roomKey: string}): Promise<Response> {

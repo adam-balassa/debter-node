@@ -38,33 +38,6 @@ export class DataLayer {
     });
   }
 
-  uploadMultipleRooms(rooms: DRoom[], details: DDetail[]): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const roomsString: any[] = [];
-        rooms.forEach(r => { roomsString.push(
-            ...[r.id, r.room_key]
-        ); });
-        await this.database.runQuery(
-          `INSERT INTO Rooms (id, room_key)
-          VALUES ${ new Array(rooms.length).fill('(?,?)').join(',') }`,
-          ...roomsString
-        );
-
-        const detailsString: any[] = [];
-        details.forEach(d => { detailsString.push(
-            ...[d.name, d.room_id, d.default_currency, d.last_modified, d.rounding]
-        ); });
-        await this.database.runQuery(
-          `INSERT INTO Details (name, room_id, default_currency, last_modified, rounding)
-          VALUES ${ new Array(rooms.length).fill('(?,?,?,?,?)').join(',\n') }`,
-          ...detailsString
-        );
-        resolve();
-      } catch (error) { reject(error); }
-    });
-  }
-
   public refreshModified(details: DDetail): Promise<Response> {
     return this.database.runQuery(
       'UPDATE Details SET last_modified = ? WHERE room_id = ?',
@@ -100,23 +73,6 @@ export class DataLayer {
           reject(new DataError(error.message || 'An error occured'));
       }
     });
-  }
-
-  public addMultipleMembers(members: DMember[]): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-          try {
-            const membersString: any[] = [];
-            members.forEach(m => { membersString.push(
-                ...[m.id, m.alias, m.room_id]
-            ); });
-            await this.database.runQuery(
-              `INSERT INTO Members (id, alias, user_id, room_id)
-              VALUES ${ new Array(members.length).fill('(?,?,NULL,?)').join(',\n') }`,
-              ...membersString
-            );
-            resolve();
-          } catch (error) { reject(error); }
-        });
   }
 
   public getDetails(roomKey: string): Promise<Room> {
