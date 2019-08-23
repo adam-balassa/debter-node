@@ -23,6 +23,8 @@ export interface Payment extends Identified {
   date: Date;
   active: boolean;
   memberId: string;
+  excluded: string[];
+  included: string[];
 }
 
 export interface Debt {
@@ -30,4 +32,5 @@ export interface Debt {
   currency: string;
   for: string;
   from: string;
+  arranged: boolean;
 }

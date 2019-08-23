@@ -9,8 +9,7 @@ export class Controller {
 
   dataLayer: DataLayer;
 
-  public constructor() {
-  }
+  public constructor() { }
 
   public createNewRoom(data: { roomKey: string, roomName: string }): Promise<Response> {
     this.dataLayer = new DataLayer(true);
@@ -88,21 +87,35 @@ export class Controller {
     return new Promise(async (resolve, reject) => {
       try {
         const members = await this.dataLayer.getMembers({room_key: data.roomKey});
+        const debts: DDebt[] = await this.dataLayer.getDebts(members.map<string>(member => member.id as string));
+        const { rounding } = await this.dataLayer.getDetails(data.roomKey);
+
         const excludedPaymentValue = data.value / data.included.length;
         const excludedMembers = members.filter(member => !data.included.includes(member.id as string));
         const newPaymentId: string = this.generateId();
-        const payments: DPayment[] = [
-          {
-            id: newPaymentId,
-            value: data.value,
+        const payments: DPayment[] = [{
+          id: newPaymentId,
+          value: data.value,
+          currency: data.currency,
+          note: data.note,
+          related_to: null,
+          date: new Date(),
+          active: true,
+          member_id: data.memberId
+        }];
+        if (data.included.length === 1)
+          payments.push({
+            id: this.generateId(),
+            value: -data.value,
             currency: data.currency,
             note: data.note,
-            related_to: null,
+            related_to: newPaymentId,
             date: new Date(),
             active: true,
-            member_id: data.memberId
-          },
-          ...excludedMembers.map<DPayment>((member: DMember): DPayment => {
+            member_id: data.included[0]
+          });
+        else
+          payments.push(...excludedMembers.map<DPayment>((member: DMember): DPayment => {
             return {
               id: this.generateId(),
               value: excludedPaymentValue,
@@ -113,10 +126,27 @@ export class Controller {
               active: true,
               member_id: member.id as string
             };
-          })
-        ];
+          }));
         await this.dataLayer.uploadPayments(payments);
-        await this.refreshDebts(data.roomKey);
+
+        let index;
+        if ((index = debts.findIndex(debt =>
+          debt.from_member === data.memberId &&
+          debt.to_member === data.included[0] &&
+          data.included.length === 1 &&
+          debt.currency === data.currency &&
+          !debt.arranged
+        )) !== -1) {
+          if (Math.abs(debts[index].value - data.value) < rounding) {
+            debts[index].arranged = true;
+            await this.dataLayer.refreshDebts(data.roomKey, debts);
+          }
+          else if (debts[index].value > data.value) {
+            debts[index].value -= data.value;
+            await this.dataLayer.refreshDebts(data.roomKey, debts);
+          }
+        }
+        else await this.refreshDebts(data.roomKey);
         resolve(new Success('Payment successfully uploaded'));
       }
       catch (error) { reject(error); }
@@ -132,8 +162,28 @@ export class Controller {
     return new Promise(async (resolve, reject) => {
       try {
         await this.dataLayer.deletePayment(data.paymentId);
-        const result = await this.refreshDebts(data.roomKey);
-        resolve(result);
+        await this.refreshDebts(data.roomKey);
+        resolve(new Success('Payment successfully deleted'));
+      }
+      catch (error) {
+        reject(error);
+      }
+      finally {
+        this.dataLayer.close();
+      }
+    });
+  }
+
+  public revivePayment(data: {paymentId: string, roomKey: string}): Promise<Response> {
+    this.dataLayer = new DataLayer(true);
+    let parameter;
+    if ((parameter = this.check(data, 'paymentId', 'roomKey')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
+    return new Promise(async (resolve, reject) => {
+      try {
+        await this.dataLayer.revivePayment(data.paymentId);
+        await this.refreshDebts(data.roomKey);
+        resolve(new Success('Payment successfully revived'));
       }
       catch (error) {
         reject(error);
@@ -152,7 +202,9 @@ export class Controller {
         const { rounding } = await this.dataLayer.getDetails(roomKey);
         const debts = this.calculateDebts(summarizedPayments, rounding);
         const dDebts: DDebt[] = [];
-        debts.forEach(d => { dDebts.push({ from_member: d.from, to_member: d.for, value: d.value, currency: d.currency }); });
+        debts.forEach(d => { dDebts.push(
+          { from_member: d.from, to_member: d.for, value: d.value, currency: d.currency, arranged: d.arranged });
+        });
         const result = await this.dataLayer.refreshDebts(roomKey, dDebts);
         resolve(result);
       }
@@ -203,7 +255,7 @@ export class Controller {
     const debts: Debt[] = [];
     negativeMembers.forEach( member => {
       debts.push(...member.arrangements.map<Debt>((a): Debt => (
-        { from: member.memberId, for: a.memberId, value: a.value, currency }
+        { from: member.memberId, for: a.memberId, value: a.value, currency, arranged: false }
       )));
     });
     return debts;

@@ -56,5 +56,11 @@ export class Routes {
         .then(result => { res.send(result); })
         .catch(error => { res.send(error); });
     });
+
+    this.router.patch('/payment', (req: Request, res: Response) => {
+      this.controller.revivePayment({ paymentId: req.body.paymentId, roomKey: req.body.roomKey })
+        .then(result => { res.send(result); })
+        .catch(error => { res.send(error); });
+    });
   }
 }
