@@ -21,3 +21,38 @@ export interface UpdatablePayment {
   paymentId: string;
   roomKey: string;
 }
+
+export interface RoomDetails {
+  key: string;
+  name: string;
+  rounding: number;
+  defaultCurrency: string;
+  lastModified: Date;
+}
+
+export interface FullRoomData {
+  payments: {
+    id: string;
+    value: number;
+    currency: string;
+    realValue: number;
+    note: string;
+    fromId: string;
+    date: Date;
+    active: boolean;
+    memberId: string;
+    excluded: string[];
+    included: string[];
+  }[];
+  members: {
+    id: string;
+    name: string;
+  }[];
+  debts: {
+    value: number;
+    currency: string;
+    for: string;
+    from: string;
+    arranged: boolean;
+  }[];
+}

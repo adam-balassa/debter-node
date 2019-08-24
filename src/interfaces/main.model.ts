@@ -11,10 +11,12 @@ export interface Room extends Identified {
 }
 
 export interface Member extends Identified {
+  id: string;
   name: string;
 }
 
 export interface Payment extends Identified {
+  id: string;
   value: number;
   currency: string;
   realValue: number;

@@ -17,26 +17,26 @@ export class Routes {
 
     this.router.post('/room', (req: Request, res: Response) => {
       this.controller.createNewRoom({ roomKey: req.body.roomKey, roomName: req.body.roomName })
-        .then(result => { res.send(result); })
-        .catch(error => { res.send(error); });
+        .then(result => { res.status(result.statusCode).send(result); })
+        .catch(error => { res.status(error.statusCode).send(error); });
     });
 
     this.router.post('/room/members', (req: Request, res: Response) => {
       this.controller.addMembersToRoom({ roomKey: req.body.roomKey, members: req.body.members })
-        .then(result => { res.send(result); })
-        .catch(error => { res.send(error); });
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
     });
 
     this.router.patch('/room/login', (req: Request, res: Response) => {
       this.controller.loginRoom({ roomKey: req.body.roomKey })
-        .then(result => { res.send(result); })
-        .catch(error => { res.send(error); });
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
     });
 
     this.router.get('/room/:roomKey', (req: Request, res: Response) => {
       this.controller.loadEntireRoomData({ roomKey: req.params.roomKey })
-        .then(result => { res.send(result); })
-        .catch(error => { res.send(error); });
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
     });
 
     this.router.post('/payment', (req: Request, res: Response) => {
@@ -48,20 +48,20 @@ export class Routes {
         included: req.body.payment.included,
         note: req.body.payment.note
       })
-        .then(result => res.send(result))
-        .catch(error => res.send(error));
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
     });
 
     this.router.delete('/payment', (req: Request, res: Response) => {
       this.controller.deletePayment({ paymentId: req.body.paymentId, roomKey: req.body.roomKey })
-        .then(result => { res.send(result); })
-        .catch(error => { res.send(error); });
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
     });
 
     this.router.patch('/payment', (req: Request, res: Response) => {
       this.controller.revivePayment({ paymentId: req.body.paymentId, roomKey: req.body.roomKey })
-        .then(result => { res.send(result); })
-        .catch(error => { res.send(error); });
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
     });
 
     this.router.use((req: Request, res: Response) => {

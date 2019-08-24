@@ -2,6 +2,7 @@ import { Database } from './database';
 import { DRoom, DDetail, DMember, DPayment, DDebt } from '../interfaces/database.model';
 import { Room, Member, Payment, Debt } from '../interfaces/main.model';
 import { DatabaseError, Success, Response, DataError } from '../interfaces/exceptions.model';
+import { FullRoomData } from '../interfaces/shared.model';
 export class DataLayer {
   database: Database;
 
@@ -14,7 +15,7 @@ export class DataLayer {
     this.database.close();
   }
 
-  public createNewRoom(room: DRoom, details: DDetail): Promise<Response> {
+  public createNewRoom(room: DRoom, details: DDetail): Promise<Response<string>> {
     return new Promise(async (resolve, reject) => {
       try {
         console.log(room, details);
@@ -45,7 +46,7 @@ export class DataLayer {
     );
   }
 
-  public addMembersToRoom(members: DMember[], roomKey: string): Promise<Response> {
+  public addMembersToRoom(members: DMember[], roomKey: string): Promise<Response<string>> {
     return new Promise(async (resolve, reject) => {
       try {
         const result: { id: string }[] = await this.database.runQuery(
@@ -121,7 +122,7 @@ export class DataLayer {
     );
   }
 
-  public getRoomData(room: DRoom): Promise<Response> {
+  public getRoomData(room: DRoom): Promise<Response<FullRoomData>> {
     return new Promise(async (resolve, reject) => {
       try {
         const dMembers: DMember[] = await this.getMembers(room);

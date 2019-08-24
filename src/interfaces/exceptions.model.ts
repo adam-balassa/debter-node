@@ -1,17 +1,17 @@
 type Layer = 'router' | 'authentication' | 'server' | 'data' | 'database';
 
-export type Response = Error | Success;
+export type Response<T = any> = Error | Success<T>;
 
 interface IResponse {
   error: boolean;
   statusCode: number;
 }
 
-export class Success implements IResponse {
+export class Success<T = any> implements IResponse {
   statusCode = 200;
   error = false;
-  data: any;
-  public constructor(data: any) { this.data = data; }
+  data: T;
+  public constructor(data: T) { this.data = data; }
 }
 
 export class Error implements IResponse {
