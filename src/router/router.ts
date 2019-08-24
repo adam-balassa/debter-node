@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { Controller } from '../controller/controller';
+import { RoutingError } from '../interfaces/exceptions.model';
 export class Routes {
   router: Router;
   controller: Controller;
@@ -21,7 +22,7 @@ export class Routes {
     });
 
     this.router.post('/room/members', (req: Request, res: Response) => {
-      this.controller.addMembersToRoom({ roomKey: req.body.roomKey, memberNames: req.body.members })
+      this.controller.addMembersToRoom({ roomKey: req.body.roomKey, members: req.body.members })
         .then(result => { res.send(result); })
         .catch(error => { res.send(error); });
     });
@@ -61,6 +62,10 @@ export class Routes {
       this.controller.revivePayment({ paymentId: req.body.paymentId, roomKey: req.body.roomKey })
         .then(result => { res.send(result); })
         .catch(error => { res.send(error); });
+    });
+
+    this.router.use((req: Request, res: Response) => {
+      res.send(new RoutingError('Route not found'));
     });
   }
 }

@@ -3,7 +3,7 @@ import { DataLayer } from '../database/datalayer';
 import { DRoom, DDetail, DMember, DDebt, DPayment } from '../interfaces/database.model';
 import { Room, Member, Payment, Debt } from '../interfaces/main.model';
 import { Arrangement, PositiveMember, NegativeMember, SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
-import { UploadablePayment } from '../interfaces/shared.model';
+import { UploadablePayment, UploadableRoom, UploadableMembers, UpdatablePayment } from '../interfaces/shared.model';
 
 
 export class Controller {
@@ -12,7 +12,7 @@ export class Controller {
 
   public constructor() { }
 
-  public createNewRoom(data: { roomKey: string, roomName: string }): Promise<Response> {
+  public createNewRoom(data: UploadableRoom): Promise<Response> {
     this.dataLayer = new DataLayer(true);
     let param;
     if ((param = this.check(data, 'roomKey', 'roomName')) !== null)
@@ -33,16 +33,16 @@ export class Controller {
     return this.dataLayer.createNewRoom(room, details).finally(() => { this.dataLayer.close(); });
   }
 
-  public addMembersToRoom(data: { memberNames: string[], roomKey: string }): Promise<Response> {
+  public addMembersToRoom(data: UploadableMembers): Promise<Response> {
     this.dataLayer = new DataLayer(true);
     let param;
     if ((param = this.check(data, 'roomKey', 'memberNames')) !== null)
       return Promise.reject(new ParameterNotProvided(param));
-    if (data.memberNames.length < 2)
+    if (data.members.length < 2)
       return Promise.reject(new ServerError('Must provide at least 2 members'));
 
     const members: DMember[] = [];
-    for (const name of data.memberNames)
+    for (const name of data.members)
       members.push({ id: this.generateId(), alias: name });
     return this.dataLayer.addMembersToRoom(members, data.roomKey).finally(
       () => { this.dataLayer.close(); }
@@ -97,7 +97,7 @@ export class Controller {
     ));
   }
 
-  public uploadPayment(data: {roomKey: string} & UploadablePayment) {
+  public uploadPayment(data: UploadablePayment) {
     this.dataLayer = new DataLayer(true);
     let missing = null;
     if ((missing = this.check(data, 'value', 'currency', 'note', 'memberId', 'included', 'roomKey')) !== null)
@@ -174,7 +174,7 @@ export class Controller {
     });
   }
 
-  public deletePayment(data: {paymentId: string, roomKey: string}): Promise<Response> {
+  public deletePayment(data: UpdatablePayment): Promise<Response> {
     this.dataLayer = new DataLayer(true);
     let parameter;
     if ((parameter = this.check(data, 'paymentId', 'roomKey')) !== null)
@@ -194,7 +194,7 @@ export class Controller {
     });
   }
 
-  public revivePayment(data: {paymentId: string, roomKey: string}): Promise<Response> {
+  public revivePayment(data: UpdatablePayment): Promise<Response> {
     this.dataLayer = new DataLayer(true);
     let parameter;
     if ((parameter = this.check(data, 'paymentId', 'roomKey')) !== null)
