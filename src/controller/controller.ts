@@ -240,7 +240,14 @@ export class Controller {
     let parameter;
     if ((parameter = this.check(data, 'mainCurrency', 'roomKey')) !== null)
       return Promise.reject(new ParameterNotProvided(parameter));
-    return this.dataLayer.setCurrency(data.roomKey, data.mainCurrency);
+    return new Promise(async (resolve, reject) => {
+      try {
+        const result = await this.dataLayer.setCurrency(data.roomKey, data.mainCurrency);
+        await this.refreshDebts(data.roomKey);
+        resolve(result);
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
   }
 
   public setRounding(data: RoundingUpdate): Promise<Response> {
@@ -248,7 +255,14 @@ export class Controller {
     let parameter;
     if ((parameter = this.check(data, 'rounding', 'roomKey')) !== null)
       return Promise.reject(new ParameterNotProvided(parameter));
-    return this.dataLayer.setRounding(data.roomKey, data.rounding);
+      return new Promise(async (resolve, reject) => {
+        try {
+          const result = await this.dataLayer.setRounding(data.roomKey, data.rounding);
+          await this.refreshDebts(data.roomKey);
+          resolve(result);
+        } catch (error) { reject(error); }
+        finally { this.dataLayer.close(); }
+      });
   }
 
   private refreshDebts(roomKey: string): Promise<Response> {
