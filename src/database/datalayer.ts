@@ -18,7 +18,6 @@ export class DataLayer {
   public createNewRoom(room: DRoom, details: DDetail): Promise<Response<string>> {
     return new Promise(async (resolve, reject) => {
       try {
-        console.log(room, details);
         const roomResult = await this.database.runQuery(
           'INSERT INTO Rooms SET room_key = ?, id = ?',
           room.room_key, room.id
@@ -122,7 +121,7 @@ export class DataLayer {
     );
   }
 
-  public getRoomData(room: DRoom): Promise<Response<FullRoomData>> {
+  public getRoomData(room: DRoom): Promise<FullRoomData> {
     return new Promise(async (resolve, reject) => {
       try {
         const dMembers: DMember[] = await this.getMembers(room);
@@ -143,7 +142,7 @@ export class DataLayer {
         const debts: Debt[] = dDebts.map<Debt>((debt: DDebt): Debt => {
           return { value: debt.value, currency: debt.currency, for: debt.to_member, from: debt.from_member, arranged: debt.arranged };
         });
-        resolve(new Success({members, payments, debts}));
+        resolve({members, payments, debts});
       }
       catch (error) {
         console.log(error);

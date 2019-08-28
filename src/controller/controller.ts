@@ -1,9 +1,10 @@
-import { Success, Response, ServerError, ParameterNotProvided, Error, DataError } from '../interfaces/exceptions.model';
+import { Success, Response, ServerError, ParameterNotProvided, } from '../interfaces/exceptions.model';
 import { DataLayer } from '../database/datalayer';
 import { DRoom, DDetail, DMember, DDebt, DPayment } from '../interfaces/database.model';
-import { Room, Member, Payment, Debt } from '../interfaces/main.model';
-import { Arrangement, PositiveMember, NegativeMember, SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
-import { UploadablePayment, UploadableRoom, UploadableMembers, UpdatablePayment, RoomDetails, FullRoomData } from '../interfaces/shared.model';
+import { Room, Debt } from '../interfaces/main.model';
+import { PositiveMember, NegativeMember, SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
+import { UploadablePayment, UploadableRoom, UploadableMembers,
+  UpdatablePayment, RoomDetails, FullRoomData } from '../interfaces/shared.model';
 
 
 export class Controller {
@@ -12,25 +13,36 @@ export class Controller {
 
   public constructor() { }
 
-  public createNewRoom(data: UploadableRoom): Promise<Response<string>> {
+  public createNewRoom(data: UploadableRoom): Promise<Response<RoomDetails>> {
     this.dataLayer = new DataLayer(true);
-    let param;
-    if ((param = this.check(data, 'roomKey', 'roomName')) !== null)
-      return Promise.reject(new ParameterNotProvided(param));
-    if (data.roomKey.length !== 6)
-      return Promise.reject(new ServerError('roomKey must be 6 letters long'));
-    const room: DRoom = {
-      id: this.generateId(),
-      room_key: data.roomKey
-    };
-    const details: DDetail = {
-      room_id: room.id,
-      name: data.roomName,
-      rounding: 1,
-      default_currency: 'HUF',
-      last_modified: new Date()
-    };
-    return this.dataLayer.createNewRoom(room, details).finally(() => { this.dataLayer.close(); });
+    return new Promise(async (resolve, reject) => {
+      try {
+        const roomKey = await this.generateRoomKey();
+        let param;
+        if ((param = this.check(data, 'roomName')) !== null)
+          return reject(new ParameterNotProvided(param));
+        const room: DRoom = {
+          id: this.generateId(),
+          room_key: roomKey
+        };
+        const details: DDetail = {
+          room_id: room.id,
+          name: data.roomName,
+          rounding: 1,
+          default_currency: 'HUF',
+          last_modified: new Date()
+        };
+        await this.dataLayer.createNewRoom(room, details);
+        resolve(new Success({
+          key: roomKey,
+          name: details.name as string,
+          rounding: details.rounding as number,
+          defaultCurrency: details.default_currency as string,
+          lastModified: details.last_modified as Date
+        }));
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
   }
 
   public addMembersToRoom(data: UploadableMembers): Promise<Response<string>> {
@@ -92,9 +104,18 @@ export class Controller {
     this.dataLayer = new DataLayer();
     if (this.check(data, 'roomKey') !== null)
       return Promise.reject(new ParameterNotProvided('roomKey'));
-    return Promise.resolve(this.dataLayer.getRoomData({room_key: data.roomKey}).finally(
-      () => { this.dataLayer.close(); }
-    ));
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { defaultCurrency } = await this.dataLayer.getDetails(data.roomKey);
+        const roomData: FullRoomData = await this.dataLayer.getRoomData({room_key: data.roomKey});
+        roomData.payments = roomData.payments.map(payment => ({
+          ...payment,
+          realValue: this.convert({value: payment.value, currency: payment.currency, defaultCurrency})}));
+        resolve(new Success(roomData));
+      }
+      catch (error) { reject(new ServerError(error.message)); }
+      finally { this.dataLayer.close(); }
+    });
   }
 
   public uploadPayment(data: UploadablePayment): Promise<Response<string>> {
@@ -359,6 +380,19 @@ export class Controller {
       // tslint:disable-next-line: no-bitwise
       const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
+    });
+  }
+
+  private generateRoomKey(): Promise<string> {
+    let result           = '';
+    const characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const charactersLength = characters.length;
+    for ( let i = 0; i < 6; i++ )
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    return new Promise((resolve, reject) => {
+      this.dataLayer.getDetails(result)
+      .catch(() => { resolve(result); })
+      .then(() => resolve(this.generateId()));
     });
   }
 }

@@ -9,7 +9,6 @@ export interface UploadablePayment {
 
 export interface UploadableRoom {
   roomName: string;
-  roomKey: string;
 }
 
 export interface UploadableMembers {

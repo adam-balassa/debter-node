@@ -16,7 +16,7 @@ export class Routes {
     });
 
     this.router.post('/room', (req: Request, res: Response) => {
-      this.controller.createNewRoom({ roomKey: req.body.roomKey, roomName: req.body.roomName })
+      this.controller.createNewRoom({ roomName: req.body.roomName })
         .then(result => { res.status(result.statusCode).send(result); })
         .catch(error => { res.status(error.statusCode).send(error); });
     });
