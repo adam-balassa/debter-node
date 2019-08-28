@@ -52,14 +52,14 @@ export class Routes {
       .catch(error => { res.status(error.statusCode).send(error); });
     });
 
-    this.router.delete('/payment', (req: Request, res: Response) => {
-      this.controller.deletePayment({ paymentId: req.body.paymentId, roomKey: req.body.roomKey })
+    this.router.delete('/room/:roomKey/payment/:paymentId', (req: Request, res: Response) => {
+      this.controller.deletePayment({ paymentId: req.params.paymentId, roomKey: req.params.roomKey })
       .then(result => { res.status(result.statusCode).send(result); })
       .catch(error => { res.status(error.statusCode).send(error); });
     });
 
-    this.router.patch('/payment', (req: Request, res: Response) => {
-      this.controller.revivePayment({ paymentId: req.body.paymentId, roomKey: req.body.roomKey })
+    this.router.patch('/room/:roomKey/payment/:paymentId', (req: Request, res: Response) => {
+      this.controller.revivePayment({ paymentId: req.params.paymentId, roomKey: req.params.roomKey })
       .then(result => { res.status(result.statusCode).send(result); })
       .catch(error => { res.status(error.statusCode).send(error); });
     });
