@@ -48,7 +48,7 @@ export class Controller {
   public addMembersToRoom(data: UploadableMembers): Promise<Response<string>> {
     this.dataLayer = new DataLayer(true);
     let param;
-    if ((param = this.check(data, 'roomKey', 'memberNames')) !== null)
+    if ((param = this.check(data, 'roomKey', 'members')) !== null)
       return Promise.reject(new ParameterNotProvided(param));
     if (data.members.length < 2)
       return Promise.reject(new ServerError('Must provide at least 2 members'));
