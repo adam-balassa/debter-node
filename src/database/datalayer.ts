@@ -263,7 +263,7 @@ export class DataLayer {
     });
   }
 
-    public getMembers(room: DRoom): Promise<DMember[]> {
+  public getMembers(room: DRoom): Promise<DMember[]> {
     return this.database.runQuery(
       `SELECT Members.id as id, Rooms.id as room_id, alias
       FROM Members
@@ -309,6 +309,32 @@ export class DataLayer {
       FROM Debts WHERE from_member IN (${new Array(memberIds.length).fill('?').join(',')})`,
       ...memberIds
     );
+  }
+
+  public setCurrency(roomKey: string, currency: string): Promise<Response> {
+    return new Promise((resolve, reject) => {
+      this.database.runQuery(
+        `UPDATE Details SET default_currency = ? WHERE room_id = (SELECT id FROM Rooms WHERE room_key = ?)`,
+        currency, roomKey
+      ).then(result => {
+        if (result.affectedRows < 1) throw new DataError('Modification failed');
+        resolve(new Success(`New main currency set`));
+      })
+      .catch(error => reject(new DataError(error.message)));
+    });
+  }
+
+  public setRounding(roomKey: string, rounding: number): Promise<Response> {
+    return new Promise((resolve, reject) => {
+      this.database.runQuery(
+        `UPDATE Details SET rounding = ? WHERE room_id = (SELECT id FROM Rooms WHERE room_key = ?)`,
+        rounding, roomKey
+      ).then(result => {
+        if (result.affectedRows < 1) throw new DataError('Modification failed');
+        resolve(new Success(`New rounding set`));
+      })
+      .catch(error => reject(new DataError(error.message)));
+    });
   }
 
   private parseDate(date: Date): string {

@@ -4,7 +4,7 @@ import { DRoom, DDetail, DMember, DDebt, DPayment } from '../interfaces/database
 import { Room, Debt } from '../interfaces/main.model';
 import { PositiveMember, NegativeMember, SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
 import { UploadablePayment, UploadableRoom, UploadableMembers,
-  UpdatablePayment, RoomDetails, FullRoomData } from '../interfaces/shared.model';
+  UpdatablePayment, RoomDetails, FullRoomData, CurrencyUpdate, RoundingUpdate } from '../interfaces/shared.model';
 
 
 export class Controller {
@@ -233,6 +233,16 @@ export class Controller {
         this.dataLayer.close();
       }
     });
+  }
+
+  public setCurrency(data: CurrencyUpdate): Promise<Response> {
+    this.dataLayer = new DataLayer();
+    return this.dataLayer.setCurrency(data.roomKey, data.mainCurrency);
+  }
+
+  public setRounding(data: RoundingUpdate): Promise<Response> {
+    this.dataLayer = new DataLayer();
+    return this.dataLayer.setRounding(data.roomKey, data.rounding);
   }
 
   private refreshDebts(roomKey: string): Promise<Response> {

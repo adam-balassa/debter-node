@@ -64,6 +64,18 @@ export class Routes {
       .catch(error => { res.status(error.statusCode).send(error); });
     });
 
+    this.router.patch('/settings/currency', (req: Request, res: Response) => {
+      this.controller.setCurrency({ roomKey: req.body.roomKey, mainCurrency: req.body.mainCurrency })
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
+    });
+
+    this.router.patch('/settings/rounding', (req: Request, res: Response) => {
+      this.controller.setRounding({ roomKey: req.body.roomKey, rounding: req.body.rounding })
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode).send(error); });
+    });
+
     this.router.use((req: Request, res: Response) => {
       res.send(new RoutingError('Route not found'));
     });

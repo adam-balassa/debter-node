@@ -29,6 +29,16 @@ export interface RoomDetails {
   lastModified: Date;
 }
 
+export interface CurrencyUpdate {
+  roomKey: string;
+  mainCurrency: string;
+}
+
+export interface RoundingUpdate {
+  roomKey: string;
+  rounding: number;
+}
+
 export interface FullRoomData {
   payments: {
     id: string;
