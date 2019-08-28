@@ -42,11 +42,11 @@ export class Routes {
     this.router.post('/payment', (req: Request, res: Response) => {
       this.controller.uploadPayment({
         roomKey: req.body.roomKey,
-        value: req.body.payment.value,
-        currency: req.body.payment.currency,
-        memberId: req.body.payment.memberId,
-        included: req.body.payment.included,
-        note: req.body.payment.note
+        value: req.body.value,
+        currency: req.body.currency,
+        memberId: req.body.memberId,
+        included: req.body.included,
+        note: req.body.note
       })
       .then(result => { res.status(result.statusCode).send(result); })
       .catch(error => { res.status(error.statusCode).send(error); });
