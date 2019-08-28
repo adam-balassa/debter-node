@@ -237,11 +237,17 @@ export class Controller {
 
   public setCurrency(data: CurrencyUpdate): Promise<Response> {
     this.dataLayer = new DataLayer();
+    let parameter;
+    if ((parameter = this.check(data, 'mainCurrency', 'roomKey')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
     return this.dataLayer.setCurrency(data.roomKey, data.mainCurrency);
   }
 
   public setRounding(data: RoundingUpdate): Promise<Response> {
     this.dataLayer = new DataLayer();
+    let parameter;
+    if ((parameter = this.check(data, 'rounding', 'roomKey')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
     return this.dataLayer.setRounding(data.roomKey, data.rounding);
   }
 
