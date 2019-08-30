@@ -1,7 +1,7 @@
 import { Database } from './database';
 import { DRoom, DDetail, DMember, DPayment, DDebt } from '../interfaces/database.model';
 import { Room, Member, Payment, Debt } from '../interfaces/main.model';
-import { DatabaseError, Success, Response, DataError } from '../interfaces/exceptions.model';
+import { Success, Response, DataError } from '../interfaces/exceptions.model';
 import { FullRoomData } from '../interfaces/shared.model';
 import { SummarizablePayment } from '../interfaces/special-types.model';
 export class DataLayer {
@@ -106,10 +106,12 @@ export class DataLayer {
 
   public getOldRooms(lastModified: Date, lastModifiedIfArranged: Date): Promise<{id: string}[]> {
     return this.database.runQuery(
-      `SELECT room_id FROM Details WHERE last_modified < ? OR Details.room_id IN(
+      `SELECT room_id as id FROM Details WHERE last_modified < ? OR Details.room_id NOT IN(
         SELECT Rooms.id FROM Rooms
         INNER JOIN Members ON Members.room_id = Rooms.id
-        INNER JOIN Debts ON Debts.from_member = Members.id)
+        INNER JOIN Debts ON Debts.from_member = Members.id
+        WHERE NOT arranged
+        )
       AND last_modified < ?`,
         this.parseDate(lastModified), this.parseDate(lastModifiedIfArranged)
     );

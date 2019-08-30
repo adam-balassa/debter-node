@@ -91,6 +91,7 @@ export class Controller {
         const oldRoomBefore: number = veryOldRoomBefore / 2;
         const ids: string[] = (await this.dataLayer.getOldRooms(
           new Date(Date.now() - veryOldRoomBefore), new Date(Date.now() - oldRoomBefore))).map(e => e.id);
+        console.log(ids);
         if (ids.length > 0)
           await this.dataLayer.deleteRooms(ids);
         resolve(new Success('Rooms successfully deleted'));

@@ -21,6 +21,12 @@ export class Routes {
         .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
+    this.router.delete('/rooms', (req: Request, res: Response) => {
+      this.controller.deleteUnusedRooms()
+        .then(result => { res.status(result.statusCode).send(result); })
+        .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
     this.router.post('/room/members', (req: Request, res: Response) => {
       this.controller.addMembersToRoom({ roomKey: req.body.roomKey, members: req.body.members })
       .then(result => { res.status(result.statusCode).send(result); })
@@ -80,7 +86,7 @@ export class Routes {
       this.controller.refreshAllDebts()
       .then(result => { res.status(result.statusCode).send(result); })
       .catch(error => { res.status(error.statusCode || 500).send(error); });
-    })
+    });
 
     this.router.use((req: Request, res: Response) => {
       res.send(new RoutingError('Route not found'));
