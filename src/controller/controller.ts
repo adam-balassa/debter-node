@@ -6,6 +6,7 @@ import { SummarizablePayment, SummarizedMember } from '../interfaces/special-typ
 import { UploadablePayment, UploadableRoom, UploadableMembers,
   UpdatablePayment, RoomDetails, FullRoomData, CurrencyUpdate, RoundingUpdate } from '../interfaces/shared.model';
 import { DebtArranger } from './debt-arranger';
+import { Converter } from './converter';
 
 
 export class Controller {
@@ -103,15 +104,15 @@ export class Controller {
 
   public loadEntireRoomData(data: {roomKey: string}): Promise<Response<FullRoomData>> {
     this.dataLayer = new DataLayer();
+    const converter = new Converter();
     if (this.check(data, 'roomKey') !== null)
       return Promise.reject(new ParameterNotProvided('roomKey'));
     return new Promise(async (resolve, reject) => {
       try {
         const { defaultCurrency } = await this.dataLayer.getDetails(data.roomKey);
         const roomData: FullRoomData = await this.dataLayer.getRoomData({room_key: data.roomKey});
-        roomData.payments = roomData.payments.map(payment => ({
-          ...payment,
-          realValue: this.convert({value: payment.value, currency: payment.currency, defaultCurrency})}));
+        for (const payment of roomData.payments)
+          payment.realValue = await converter.convert({ value: payment.value, from: payment.currency, to: defaultCurrency });
         resolve(new Success(roomData));
       }
       catch (error) { reject(new ServerError(error.message)); }
@@ -286,8 +287,8 @@ export class Controller {
       try {
         const roomData: Success<SummarizablePayment[]> = (await this.dataLayer.getSummarizedPayments({room_key: roomKey})) as Success;
         if (roomData.data.length === 0) return resolve(new Success({}));
-        const summarizedPayments = this.summarizePayments(roomData.data);
-        const { rounding } = await this.dataLayer.getDetails(roomKey);
+        const { rounding, defaultCurrency } = await this.dataLayer.getDetails(roomKey);
+        const summarizedPayments = await this.summarizePayments(roomData.data, defaultCurrency);
         const debtArranger = new DebtArranger(summarizedPayments, rounding);
         const debts = debtArranger.debts;
         const dDebts: DDebt[] = debts.map<DDebt>(debt => ({
@@ -305,28 +306,27 @@ export class Controller {
     });
   }
 
-  private summarizePayments(payments: Array<SummarizablePayment>): SummarizedMember[] {
+  private summarizePayments(payments: Array<SummarizablePayment>, defaultCurrency: string): Promise<SummarizedMember[]> {
     const summarized: SummarizedMember[] = [];
-    const defaultCurrency = payments[0].currency;
     let memberId = '';
     let membersIndex = -1;
-    for (let i = 0; i < payments.length; ++i) {
-      if (memberId !== payments[i].memberId) {
-        membersIndex++;
-        summarized.push({ memberId: payments[i].memberId, sum: this.convert(payments[i]), currency: defaultCurrency });
-        memberId = payments[i].memberId;
+    return new Promise(async (resolve, reject) => {
+      const converter = new Converter();
+      for (let i = 0; i < payments.length; ++i) {
+        if (memberId !== payments[i].memberId) {
+          membersIndex++;
+          summarized.push({
+            memberId: payments[i].memberId,
+            sum: await converter.convert({value: payments[i].value, from: payments[i].currency, to: defaultCurrency}),
+            currency: defaultCurrency
+          });
+          memberId = payments[i].memberId;
+        }
+        else summarized[membersIndex].sum +=
+          await converter.convert({value: payments[i].value, from: payments[i].currency, to: defaultCurrency});
       }
-      else summarized[membersIndex].sum += this.convert(payments[i]);
-    }
-    return summarized;
-  }
-
-  private convert(payment: {value: number, currency: string, defaultCurrency: string}): number {
-    const converter: {[currency: string]: number} = {'HUF': 1, 'EUR': 320, 'USD': 290};
-    if (payment.currency === payment.defaultCurrency) return payment.value;
-    if (!converter.hasOwnProperty(payment.currency) || !converter.hasOwnProperty(payment.defaultCurrency))
-      throw new ServerError('Unknown curency');
-    return payment.value * converter[payment.currency];
+      resolve(summarized);
+    });
   }
 
   private check(object: { [key: string]: any }, ...keys: string[]): string | null {

@@ -17,7 +17,6 @@ export interface SummarizablePayment {
   memberId: string;
   value: number;
   currency: string;
-  defaultCurrency: string;
 }
 
 export interface SummarizedMember {
