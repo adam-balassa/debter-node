@@ -10,9 +10,8 @@ export interface DebtMember {
 // tslint:disable-next-line: no-empty-interface
 export interface PositiveMember extends DebtMember { }
 
-export interface NegativeMember extends DebtMember {
-  arrangements: Arrangement[];
-}
+// tslint:disable-next-line: no-empty-interface
+export interface NegativeMember extends DebtMember { }
 
 export interface SummarizablePayment {
   memberId: string;

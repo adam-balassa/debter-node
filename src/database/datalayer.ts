@@ -3,6 +3,7 @@ import { DRoom, DDetail, DMember, DPayment, DDebt } from '../interfaces/database
 import { Room, Member, Payment, Debt } from '../interfaces/main.model';
 import { DatabaseError, Success, Response, DataError } from '../interfaces/exceptions.model';
 import { FullRoomData } from '../interfaces/shared.model';
+import { SummarizablePayment } from '../interfaces/special-types.model';
 export class DataLayer {
   database: Database;
 
@@ -114,6 +115,10 @@ export class DataLayer {
     );
   }
 
+  public getAllRooms() {
+    return this.database.runQuery('SELECT room_key FROM Rooms WHERE 1');
+  }
+
   public deleteRooms(ids: string[]): Promise<any> {
     return this.database.runQuery(
       `DELETE FROM Rooms WHERE id IN (${new Array(ids.length).fill('?').join(',')})`,
@@ -204,7 +209,7 @@ export class DataLayer {
     });
   }
 
-  public getSummarizedPayments(room: DRoom): Promise<Response> {
+  public getSummarizedPayments(room: DRoom): Promise<Response<SummarizablePayment[]>> {
     return new Promise(async (resolve, reject) => {
       try {
         const result = await this.database.runQuery(
@@ -223,7 +228,7 @@ export class DataLayer {
             room.room_key
         );
         if (result.affectedRows < 1) throw new DataError('Invalid room_key');
-        resolve(new Success(result as Array<{memberId: string, value: number, currency: string, defaultCurrency: string}>));
+        resolve(new Success(result as SummarizablePayment[]));
       }
       catch (error) {
         console.log(error);
