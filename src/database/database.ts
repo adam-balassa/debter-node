@@ -28,6 +28,7 @@ export class Database {
     return new Promise((resolve, reject) => {
       this.connection.query(query, parameters, (error: any, result: any, fields: any) => {
         if (error) {
+          console.log(error);
           this.connection.rollback();
           this.isTransactionRunning = false;
           reject(error);
@@ -40,8 +41,10 @@ export class Database {
   public close() {
     if (this.isTransactionRunning)
       this.connection.commit(error => {
+        this.connection.end((merror: MysqlError) => { if (error) throw new DatabaseError(merror.message); });
         if (error) throw new DatabaseError(error.message);
       });
-    this.connection.end((error: MysqlError) => { if (error) throw new DatabaseError(error.message); });
+    else
+      this.connection.end((error: MysqlError) => { if (error) throw new DatabaseError(error.message); });
   }
 }
