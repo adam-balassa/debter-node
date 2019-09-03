@@ -65,3 +65,14 @@ export interface FullRoomData {
     arranged: boolean;
   }[];
 }
+
+export interface UploadableMember {
+  roomKey: string;
+  name: string;
+  payments: string[];
+}
+
+export interface DeletableMember {
+  roomKey: string;
+  memberId: string;
+}

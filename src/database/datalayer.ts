@@ -131,7 +131,7 @@ export class DataLayer {
   public getRoomData(room: DRoom): Promise<FullRoomData> {
     return new Promise(async (resolve, reject) => {
       try {
-        const dMembers: DMember[] = await this.getMembers(room);
+        const dMembers: DMember[] = await this.getMembers(room.room_key);
         if (dMembers.length < 1) throw new DataError('Cannot load members');
         const dPayments: DPayment[] = await this.getAllPayments(dMembers);
         const dDebts: DDebt[] = await this.getDebts(dMembers.map<string>((member): string => member.id as string));
@@ -141,10 +141,8 @@ export class DataLayer {
         });
         const payments: Payment[] = dPayments.map<Payment>((payment: DPayment): Payment => {
           return { id: payment.id as string, value: payment.value, currency: payment.currency,
-            realValue: payment.value, memberId: payment.member_id as string, fromId: payment.related_to as string,
-            note: payment.note, date: payment.date as Date, active: payment.active as boolean,
-            excluded: payment.excluded === '[null]' ? [] : JSON.parse(payment.excluded as string),
-            included: payment.included === '[null]' ? [] : JSON.parse(payment.included as string)};
+            realValue: payment.value, memberId: payment.member_id as string, fromId: payment.related_to as string, note: payment.note,
+            date: payment.date as Date, active: payment.active as boolean, included: payment.included, excluded: payment.excluded};
         });
         const debts: Debt[] = dDebts.map<Debt>((debt: DDebt): Debt => {
           return { value: debt.value, currency: debt.currency, for: debt.to_member, from: debt.from_member, arranged: debt.arranged };
@@ -164,6 +162,24 @@ export class DataLayer {
         const result = await this.database.runQuery(
           'UPDATE Payments SET active = 0 WHERE id = ? OR related_to = ?',
           paymentId, paymentId
+        );
+        if (result.affectedRows < 1) throw new DataError('Invalid payment or room id');
+        resolve(new Success('Payment successfully deleted'));
+      }
+      catch (error) {
+        console.log(error);
+        reject(error);
+      }
+    });
+  }
+
+  public deleteRelatedPayments(payments: string[]): Promise<Response> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const result = await this.database.runQuery(
+          `DELETE FROM Payments WHERE
+            related_to IN (${new Array(payments.length).fill('?').join(',')})`,
+          ...payments
         );
         if (result.affectedRows < 1) throw new DataError('Invalid payment or room id');
         resolve(new Success('Payment successfully deleted'));
@@ -268,14 +284,14 @@ export class DataLayer {
     });
   }
 
-  public getMembers(room: DRoom): Promise<DMember[]> {
+  public getMembers(roomKey: string): Promise<DMember[]> {
     return this.database.runQuery(
       `SELECT Members.id as id, Rooms.id as room_id, alias
       FROM Members
       INNER JOIN Rooms ON room_id = Rooms.id
       WHERE room_key = ?
       ORDER BY id DESC`,
-      room.room_key
+      roomKey
     );
   }
 
@@ -302,7 +318,10 @@ export class DataLayer {
         `,
         ...members.map<string>(member => member.id as string)
       ).then(results => {
-        resolve(results.map((result: any): DPayment => ({...result, date: new Date(result.date)})));
+        resolve(results.map((result: any): DPayment => ({...result, date: new Date(result.date),
+          excluded: result.excluded === '[null]' ? [] : JSON.parse(result.excluded as string),
+          included: result.included === '[null]' ? [] : JSON.parse(result.included as string)
+        })));
       })
       .catch(error => reject(error));
     });
@@ -340,6 +359,10 @@ export class DataLayer {
       })
       .catch(error => reject(new DataError(error.message)));
     });
+  }
+
+  public deleteMember(memberId: string): Promise<any> {
+    return this.database.runQuery('DELETE FROM Members WHERE id = ?', memberId);
   }
 
   private parseDate(date: Date): string {

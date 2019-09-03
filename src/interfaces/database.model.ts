@@ -27,8 +27,8 @@ export interface DPayment {
   date: Date;
   active: boolean;
   member_id: string;
-  excluded?: string;
-  included?: string;
+  excluded: string[];
+  included: string[];
 }
 
 export interface DDebt {

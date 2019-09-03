@@ -34,6 +34,20 @@ export class Routes {
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
+    this.router.patch('/room/members', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.addNewMember({ roomKey: req.body.roomKey, name: req.body.name, payments: req.body.payments })
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
+    this.router.delete('/room/:roomKey/members/:memberId', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.deleteMember({ roomKey: req.params.roomKey, memberId: req.params.memberId })
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
     this.router.patch('/room/login', (req: Request, res: Response) => {
       const controller = new Controller();
       controller.loginRoom({ roomKey: req.body.roomKey })

@@ -4,9 +4,11 @@ import { DRoom, DDetail, DMember, DDebt, DPayment } from '../interfaces/database
 import { Room, Debt } from '../interfaces/main.model';
 import { SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
 import { UploadablePayment, UploadableRoom, UploadableMembers,
-  UpdatablePayment, RoomDetails, FullRoomData, CurrencyUpdate, RoundingUpdate } from '../interfaces/shared.model';
+  UpdatablePayment, RoomDetails, FullRoomData, CurrencyUpdate,
+  RoundingUpdate, UploadableMember, DeletableMember } from '../interfaces/shared.model';
 import { DebtArranger } from './debt-arranger';
 import { Converter } from './converter';
+import { Server } from 'net';
 
 
 export class Controller {
@@ -130,14 +132,12 @@ export class Controller {
 
     return new Promise(async (resolve, reject) => {
       try {
-        const members = await this.dataLayer.getMembers({room_key: data.roomKey});
+        const members = await this.dataLayer.getMembers(data.roomKey);
         const debts: DDebt[] = await this.dataLayer.getDebts(members.map<string>(member => member.id as string));
         const { rounding } = await this.dataLayer.getDetails(data.roomKey);
 
-        const excludedPaymentValue = data.value / data.included.length;
-        const excludedMembers = members.filter(member => !data.included.includes(member.id as string));
         const newPaymentId: string = this.generateId();
-        const payments: DPayment[] = [{
+        let payments: DPayment[] = [{
           id: newPaymentId,
           value: data.value,
           currency: data.currency,
@@ -145,30 +145,12 @@ export class Controller {
           related_to: null,
           date: new Date(),
           active: true,
-          member_id: data.memberId
+          member_id: data.memberId,
+          included: data.included,
+          excluded: []
         }];
-        if (data.included.length === 1)
-          payments.push({
-            id: this.generateId(),
-            value: -data.value,
-            currency: data.currency,
-            note: data.note,
-            related_to: newPaymentId,
-            date: new Date(),
-            active: true,
-            member_id: data.included[0]
-          });
-        else
-          payments.push(...excludedMembers.map<DPayment>((member: DMember): DPayment => ({
-            id: this.generateId(),
-            value: excludedPaymentValue,
-            currency: data.currency,
-            note: data.note,
-            related_to: newPaymentId,
-            date: new Date(),
-            active: true,
-            member_id: member.id as string
-          })));
+
+        payments = [...payments, ...this.getRelatedPayments(payments[0], members)];
 
         await this.dataLayer.uploadPayments(payments);
 
@@ -279,6 +261,104 @@ export class Controller {
       } catch (error) { reject(new ServerError(error.message)); }
       finally { this.dataLayer.close(); }
     });
+  }
+
+  public addNewMember(data: UploadableMember): Promise<Response<{memberId: string}>> {
+    let parameter;
+    if ((parameter = this.check(data, 'name', 'roomKey', 'payments')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer(true);
+        const memberId = this.generateId();
+        const members: DMember[] = await this.dataLayer.getMembers(data.roomKey);
+        const payments: DPayment[] = (await this.dataLayer.getAllPayments(members));
+
+        payments.forEach(payment => {
+          payment.included = payment.included.length !== 0 ?
+            payment.included :
+            members.filter(member => !payment.excluded.includes(member.id as string)).map<string>(member => member.id as string);
+          payment.excluded = [];
+        });
+
+        const paymentsToUpdate: DPayment[] = [];
+        payments.forEach(payment => {
+          if (data.payments.includes(payment.id as string)) {
+              paymentsToUpdate.push({...payment, included: [...payment.included, memberId]});
+          }
+          else if (payment.included.length === members.length) paymentsToUpdate.push(payment);
+        });
+        await this.dataLayer.deleteRelatedPayments(paymentsToUpdate.map<string>(payment => payment.id as string));
+        await this.dataLayer.addMembersToRoom([{id: memberId, alias: data.name}], data.roomKey);
+        members.push({id: memberId, alias: data.name});
+        const relatedPayments: DPayment[] = [];
+        paymentsToUpdate.forEach(payment => relatedPayments.push(...this.getRelatedPayments(payment, members)));
+        await this.dataLayer.uploadPayments(relatedPayments);
+        await this.refreshDebts(data.roomKey);
+        resolve(new Success({memberId: ''}));
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
+  }
+
+  public deleteMember(data: DeletableMember): Promise<Response<string>> {
+    let parameter;
+    if ((parameter = this.check(data, 'memberId', 'roomKey')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer();
+        const members: DMember[] = await this.dataLayer.getMembers(data.roomKey);
+        const payments: DPayment[] = (await this.dataLayer.getAllPayments(members));
+
+        payments.forEach(payment => {
+          payment.included = payment.included.length !== 0 ?
+            payment.included :
+            members.filter(member => !payment.excluded.includes(member.id as string)).map<string>(member => member.id as string);
+          payment.excluded = [];
+        });
+
+        if (payments.some(payment => payment.included.includes(data.memberId) || payment.member_id === data.memberId))
+          throw new ServerError('Member is included in a payment');
+
+        await this.dataLayer.deleteMember(data.memberId);
+        resolve(new Success('Member successfully deleted'));
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
+  }
+
+  private getRelatedPayments(payment: DPayment, members: DMember[]): DPayment[] {
+    if (payment.included.length === members.length) return [];
+    const payments: DPayment[] = [];
+    const excludedPaymentValue = payment.value / payment.included.length;
+    const excludedMembers = members.filter(member => !payment.included.includes(member.id as string));
+    if (payment.included.length === 1)
+      payments.push({
+        id: this.generateId(),
+        value: -payment.value,
+        currency: payment.currency,
+        note: payment.note,
+        related_to: payment.id as string,
+        date: new Date(),
+        active: true,
+        member_id: payment.included[0],
+        included: [], excluded: []
+      });
+    else
+      payments.push(...excludedMembers.map<DPayment>((member: DMember): DPayment => ({
+        id: this.generateId(),
+        value: excludedPaymentValue,
+        currency: payment.currency,
+        note: payment.note,
+        related_to:  payment.id as string,
+        date: new Date(),
+        active: true,
+        member_id: member.id as string,
+        included: [], excluded: []
+      })));
+
+    return payments;
   }
 
   private refreshDebts(roomKey: string): Promise<Response> {
