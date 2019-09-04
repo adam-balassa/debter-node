@@ -60,7 +60,7 @@ export class DebtArranger {
   }
 
   private arrangeDebtAndResort(positiveMember: PositiveMember, negativeMember: NegativeMember, value: number) {
-    value = Math.floor((value + this.rounding) / (2 * this.rounding)) * this.rounding * 2;
+    value = Math.floor((value + this.rounding) / (2 * this.rounding)) * this.rounding * 2.0;
     this.debts.push({from: negativeMember.memberId, for: positiveMember.memberId, value, currency: this.currency, arranged: false});
 
     negativeMember.debt -= value;

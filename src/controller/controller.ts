@@ -286,7 +286,7 @@ export class Controller {
           if (data.payments.includes(payment.id as string)) {
             paymentsToUpdate.push({...payment, included: [...payment.included, memberId]});
           }
-          else if (payment.included.length === members.length) paymentsToUpdate.push(payment);
+          else if (payment.included.length > 1) paymentsToUpdate.push(payment);
         });
         await this.dataLayer.deleteRelatedPayments(paymentsToUpdate.map<string>(payment => payment.id as string));
 
@@ -296,7 +296,7 @@ export class Controller {
         paymentsToUpdate.forEach(payment => relatedPayments.push(...this.getRelatedPayments(payment, newMembers)));
         await this.dataLayer.uploadPayments(relatedPayments);
         await this.refreshDebts(data.roomKey);
-        resolve(new Success({memberId: ''}));
+        resolve(new Success({memberId}));
       } catch (error) { reject(error); }
       finally { this.dataLayer.close(); }
     });

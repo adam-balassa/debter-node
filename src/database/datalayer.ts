@@ -234,11 +234,12 @@ export class DataLayer {
           `SELECT
             Members.id AS memberId,
             ifnull(p.value, 0) as value,
-            currency
+            ifnull(currency, default_currency) as currency
           FROM Members
           LEFT JOIN (SELECT value, currency, member_id FROM Payments WHERE active = 1) p
           ON p.member_id = Members.id
           INNER JOIN Rooms ON Rooms.id = Members.room_id
+          INNER JOIN Details ON Rooms.id = Details.room_id
           WHERE Rooms.room_key = ?
           ORDER BY Members.id`,
             room.room_key
