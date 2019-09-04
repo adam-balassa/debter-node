@@ -277,22 +277,23 @@ export class Controller {
         payments.forEach(payment => {
           payment.included = payment.included.length !== 0 ?
             payment.included :
-            members.filter(member => !payment.excluded.includes(member.id as string)).map<string>(member => member.id as string);
+            members.filter(member => !payment.excluded.includes(member.id as string)).map(member => member.id as string);
           payment.excluded = [];
         });
 
         const paymentsToUpdate: DPayment[] = [];
         payments.forEach(payment => {
           if (data.payments.includes(payment.id as string)) {
-              paymentsToUpdate.push({...payment, included: [...payment.included, memberId]});
+            paymentsToUpdate.push({...payment, included: [...payment.included, memberId]});
           }
           else if (payment.included.length === members.length) paymentsToUpdate.push(payment);
         });
         await this.dataLayer.deleteRelatedPayments(paymentsToUpdate.map<string>(payment => payment.id as string));
+
         await this.dataLayer.addMembersToRoom([{id: memberId, alias: data.name}], data.roomKey);
-        members.push({id: memberId, alias: data.name});
+        const newMembers = [...members, {id: memberId, alias: data.name}];
         const relatedPayments: DPayment[] = [];
-        paymentsToUpdate.forEach(payment => relatedPayments.push(...this.getRelatedPayments(payment, members)));
+        paymentsToUpdate.forEach(payment => relatedPayments.push(...this.getRelatedPayments(payment, newMembers)));
         await this.dataLayer.uploadPayments(relatedPayments);
         await this.refreshDebts(data.roomKey);
         resolve(new Success({memberId: ''}));
