@@ -43,7 +43,7 @@ export class Converter {
 
   private getRate(data: {from: string, to: string}): number {
     if (data.from === 'EUR') return this.currencies[data.to];
-    if (data.to === 'EUR') return 1 / this.currencies.EUR;
+    if (data.to === 'EUR') return 1 / this.currencies[data.from];
     return this.getRate({ from: data.from, to: 'EUR' }) * this.getRate({ from: 'EUR', to: data.to });
   }
 }
