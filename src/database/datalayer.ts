@@ -5,7 +5,7 @@ import { Success, Response, DataError } from '../interfaces/exceptions.model';
 import { FullRoomData } from '../interfaces/shared.model';
 import { SummarizablePayment } from '../interfaces/special-types.model';
 export class DataLayer {
-  database: Database;
+  private database: Database;
 
   public constructor(transaction: boolean = false) {
     this.database = new Database();
@@ -369,5 +369,48 @@ export class DataLayer {
   private parseDate(date: Date): string {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ` +
       `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}:${('0' + date.getSeconds()).slice(-2)}`;
+  }
+
+  // ################## QUIZLET QUERIES ########################
+  public getQuizletUsers(): Promise<{name: string, id: string}[]> {
+    return this.database.runQuery('SELECT * FROM QuizletUsers');
+  }
+
+  public getQuizletSets(userId: string) {
+    return this.database.runQuery(`
+    SELECT id, name, JSON_ARRAYAGG(cards.cards) AS cards
+    FROM QuizletSets LEFT JOIN (
+      SELECT setId, JSON_OBJECT('first', \`first\`, 'second', second, 'third', third, 'index', \`index\`) AS cards
+      FROM QuizletCards
+    ) cards ON setId = id
+    WHERE userId = ?
+    GROUP BY id
+    `, userId).then(result => {
+      return result.map((set: any) => ({...set, cards: JSON.parse(set.cards)}));
+    });
+  }
+
+  public addQuizletUser(id: string, userName: string) {
+    return this.database.runQuery('INSERT INTO QuizletUsers (id, name) VALUES (?, ?)', id, userName);
+  }
+
+  public addQuizletSet(id: string, title: string, userId: string) {
+    return this.database.runQuery('INSERT INTO QuizletSets (id, name, userId) VALUES (?, ?, ?)', id, title, userId);
+  }
+
+  public addQuizletCards(cards: {index: number, first: string, second: string, third: string}[], setId: string) {
+    const cardsString: any[] = [];
+    cards.forEach(e => {
+      cardsString.push(...[ e.index, e.first, e.second, e.third, setId ]);
+    });
+    return this.database.runQuery(
+      `INSERT INTO QuizletCards (\`index\`, \`first\`, second, third, setId)
+      VALUES ${ new Array(cards.length).fill('(?,?,?,?,?)').join(',') }`,
+      ...cardsString
+    );
+  }
+
+  public deleteCardsFromSet(setId: string) {
+    return this.database.runQuery('DELETE FROM QuizletCards WHERE setId = ?', setId);
   }
 }

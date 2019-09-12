@@ -111,6 +111,29 @@ export class Routes {
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
+
+    // ############ QUIZLET ROUTES #################
+    this.router.post('/quizlet', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.loginWithUser({userName: req.body.userName})
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
+    this.router.post('/quizlet/new', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.createNewSet({userId: req.body.userId, title: req.body.title, cards: req.body.cards})
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
+    this.router.patch('/quizlet', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.editSet({ setId: req.body.setId, cards: req.body.cards })
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
     this.router.use((req: Request, res: Response) => {
       res.send(new RoutingError('Route not found'));
     });

@@ -9,6 +9,7 @@ import { UploadablePayment, UploadableRoom, UploadableMembers,
 import { DebtArranger } from './debt-arranger';
 import { Converter } from './converter';
 import { Server } from 'net';
+import { stringify } from 'querystring';
 
 
 export class Controller {
@@ -433,6 +434,69 @@ export class Controller {
       this.dataLayer.getDetails(result)
       .catch(() => { resolve(result); })
       .then(() => resolve(this.generateId()));
+    });
+  }
+
+
+  // #################### QUIZLET CONTROLLER METHODS ##########################
+
+  public loginWithUser(data: {userName: string}): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer(true);
+        if (!data.userName || data.userName.length === 0) reject(new ServerError('Error'));
+        const users: any[] = await this.dataLayer.getQuizletUsers();
+        let user;
+        if (user = users.find(u => u.name === data.userName )) {
+          const sets = await this.dataLayer.getQuizletSets(user.id);
+          resolve(new Success({ user, sets }));
+          return;
+        }
+        const id = this.generateId();
+        await this.dataLayer.addQuizletUser(id, data.userName);
+        resolve(new Success({user: {id, name: data.userName}, sets: []}));
+      } catch (error) {
+        reject(new ServerError(error.message));
+      }
+      finally {
+        this.dataLayer.close();
+      }
+    });
+  }
+
+  public createNewSet(data: {
+    userId: string,
+    title: string,
+    cards: {index: number, first: string, second: string, third: string}[] }): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer(true);
+        const setId = this.generateId();
+        await this.dataLayer.addQuizletSet(setId, data.title, data.userId);
+        await this.dataLayer.addQuizletCards(data.cards, setId);
+        return resolve(new Success('success'));
+      } catch (error) {
+        reject(new ServerError(error.message));
+      }
+      finally {
+        this.dataLayer.close();
+      }
+    });
+  }
+
+  public editSet(data: {setId: string, cards: {index: number, first: string, second: string, third: string}[] }): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer(true);
+        await this.dataLayer.deleteCardsFromSet(data.setId);
+        await this.dataLayer.addQuizletCards(data.cards, data.setId);
+        resolve(new Success(''));
+      } catch (error) {
+        reject(new ServerError(error.message));
+      }
+      finally {
+        this.dataLayer.close();
+      }
     });
   }
 }
