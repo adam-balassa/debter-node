@@ -415,14 +415,12 @@ export class DataLayer {
   }
 
   public getCompletedChallenges(): Promise<string[]> {
-    return this.database.runQuery(`
-      SELECT challenge_id FROM completed-challenges WHERE 1
-    `);
+    return this.database.runQuery(`SELECT * FROM CompletedChallenges WHERE 1`);
   }
 
   public addNewCompletedChallenge(challengeId: string): Promise<any> {
     return this.database.runQuery(`
-      INSERT INTO completed-challenges SET challenge_id = ?
+      INSERT INTO CompletedChallenges SET challenge_id = ?
     `, challengeId);
   }
 }
