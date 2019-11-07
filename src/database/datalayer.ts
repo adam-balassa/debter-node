@@ -416,7 +416,7 @@ export class DataLayer {
 
   public getCompletedChallenges(): Promise<string[]> {
     return this.database.runQuery(`
-      SELECT challenge_id FROM completed-challenges
+      SELECT challenge_id FROM completed-challenges WHERE 1
     `);
   }
 
