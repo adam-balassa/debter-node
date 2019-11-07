@@ -505,6 +505,8 @@ export class Controller {
       try {
         this.dataLayer = new DataLayer(true);
         const challenges: string[] = await this.dataLayer.getCompletedChallenges();
+        console.log(challenges);
+
         if (challenges.includes(data.challengeId)) return resolve(new Success(''));
 
         await this.dataLayer.addNewCompletedChallenge(data.challengeId);

@@ -415,7 +415,10 @@ export class DataLayer {
   }
 
   public getCompletedChallenges(): Promise<string[]> {
-    return this.database.runQuery(`SELECT challenge_id FROM CompletedChallenges WHERE 1`);
+    return new Promise(resolve => {
+      this.database.runQuery(`SELECT challenge_id FROM CompletedChallenges WHERE 1`)
+      .then(records => resolve(records.map((record: any) => record.challenge_id)));
+    })
   }
 
   public addNewCompletedChallenge(challengeId: string): Promise<any> {
