@@ -499,4 +499,22 @@ export class Controller {
       }
     });
   }
+
+  public addNewCompletedChallenge(data: {challengeId: string}): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer(true);
+        const challenges: string[] = await this.dataLayer.getCompletedChallenges();
+        if (challenges.includes(data.challengeId)) return resolve(new Success(''));
+
+        await this.dataLayer.addNewCompletedChallenge(data.challengeId);
+        resolve(new Success(''));
+      } catch (error) {
+        reject(new ServerError(error.message));
+      }
+      finally {
+        this.dataLayer.close();
+      }
+    });
+  }
 }

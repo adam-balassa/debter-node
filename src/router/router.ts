@@ -134,6 +134,14 @@ export class Routes {
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
+    // ############ QUIZLET ROUTES #################
+    this.router.post('/teo/challenge', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.addNewCompletedChallenge({ challengeId: req.body.challengeId })
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
     this.router.use((req: Request, res: Response) => {
       res.send(new RoutingError('Route not found'));
     });

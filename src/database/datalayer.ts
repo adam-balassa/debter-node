@@ -413,4 +413,16 @@ export class DataLayer {
   public deleteCardsFromSet(setId: string) {
     return this.database.runQuery('DELETE FROM QuizletCards WHERE setId = ?', setId);
   }
+
+  public getCompletedChallenges(): Promise<string[]> {
+    return this.database.runQuery(`
+      SELECT challenge_id FROM completed-challenges
+    `);
+  }
+
+  public addNewCompletedChallenge(challengeId: string): Promise<any> {
+    return this.database.runQuery(`
+      INSERT INTO completed-challenges SET challenge_id = ?
+    `, challengeId);
+  }
 }
