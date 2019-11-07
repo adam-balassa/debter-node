@@ -517,4 +517,19 @@ export class Controller {
       }
     });
   }
+
+  public getCompletedChallenges(): Promise<any>  {
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer();
+        const challenges: string[] = await this.dataLayer.getCompletedChallenges();
+        resolve(new Success(challenges));
+      } catch (error) {
+        reject(new ServerError(error.message));
+      }
+      finally {
+        this.dataLayer.close();
+      }
+    });
+  }
 }
