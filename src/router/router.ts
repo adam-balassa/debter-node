@@ -120,7 +120,7 @@ export class Routes {
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
-    this.router.patch('/login', (req: Request, res: Response) => {
+    this.router.post('/login', (req: Request, res: Response) => {
       const controller = new Controller();
       controller.loginWithUser(
         { email: req.body.email, password: req.body.password }
