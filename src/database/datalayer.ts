@@ -1,5 +1,5 @@
 import { Database } from './database';
-import { DRoom, DDetail, DMember, DPayment, DDebt } from '../interfaces/database.model';
+import { DRoom, DDetail, DMember, DPayment, DDebt, DUser } from '../interfaces/database.model';
 import { Room, Member, Payment, Debt } from '../interfaces/main.model';
 import { Success, Response, DataError } from '../interfaces/exceptions.model';
 import { FullRoomData } from '../interfaces/shared.model';
@@ -366,6 +366,78 @@ export class DataLayer {
     return this.database.runQuery('DELETE FROM Members WHERE id = ?', memberId);
   }
 
+  public addNewUser(user: DUser): Promise<Response<string>> {
+    return new Promise((resolve, reject) => {
+      this.database.runQuery(
+        `INSERT INTO Users (id, firstname, lastname, email, password)
+        VALUES(?,?,?,?,?)`,
+        user.id, user.firstname, user.lastname, user.email, user.password
+      ).then(result => {
+        if (result.affectedRows < 1) throw new DataError('Modification failed');
+        resolve(new Success(`New user added`));
+      })
+      .catch(error => reject(new DataError(error.message)));
+    });
+  }
+
+  public getUserData(email: string): Promise<DUser> {
+    return new Promise((resolve, reject) => {
+      this.database.runQuery(
+        `SELECT * FROM Users WHERE email = ?`,
+        email
+      ).then(result => {
+        if (result.length < 1) throw new DataError('User not found failed');
+        resolve({
+          id: result[0].id,
+          email: result[0].email,
+          firstname: result[0].firstname,
+          lastname: result[0].lastname,
+          password: result[0].password});
+      })
+      .catch(error => reject(new DataError(error.message)));
+    });
+  }
+
+  public getUsersRooms(email: string): Promise<{room_key: string, name: string}[]> {
+    return new Promise((resolve, reject) => {
+      this.database.runQuery(
+        `select room_key, name, email from Rooms
+          inner join Details
+            on Details.room_id = Rooms.id
+          inner join Members
+            on Members.room_id = Rooms.id
+          inner join Users
+            on Members.user_id = Users.id
+          where email = ?`,
+        email
+      ).then((result) => {
+        if (result.length < 1) throw new DataError('User not found');
+        resolve(result.map((res: any) => ({room_key: res.room_key as string, name: res.name as string})));
+      })
+      .catch(error => reject(new DataError(error.message)));
+    });
+  }
+
+  public getUsersDebts(email: string): Promise<{name: string, id: string, currency: string, value: number}[]> {
+    return new Promise((resolve, reject) => {
+      this.database.runQuery(
+        `select m2.alias as name, m2.id, Debts.currency, Debts.value from Debts
+        inner join Members m1
+          on Debts.from_member = m1.id
+        inner join Members m2
+          on Debts.to_member = m2.id
+        inner join Users
+          on Users.id = m1.user_id
+        where email = ? and arranged = 0`,
+        email
+      ).then((result) => {
+        if (result.length < 1) throw new DataError('User not found');
+        resolve(result);
+      })
+      .catch(error => reject(new DataError(error.message)));
+    });
+  }
+
   private parseDate(date: Date): string {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ` +
       `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}:${('0' + date.getSeconds()).slice(-2)}`;
@@ -418,7 +490,7 @@ export class DataLayer {
     return new Promise(resolve => {
       this.database.runQuery(`SELECT challenge_id FROM CompletedChallenges WHERE 1`)
       .then(records => resolve(records.map((record: any) => record.challenge_id)));
-    })
+    });
   }
 
   public addNewCompletedChallenge(challengeId: string): Promise<any> {

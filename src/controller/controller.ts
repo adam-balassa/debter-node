@@ -1,7 +1,7 @@
 import { Success, Response, ServerError, ParameterNotProvided, } from '../interfaces/exceptions.model';
 import { DataLayer } from '../database/datalayer';
-import { DRoom, DDetail, DMember, DDebt, DPayment } from '../interfaces/database.model';
-import { Room, Debt } from '../interfaces/main.model';
+import { DRoom, DDetail, DMember, DDebt, DPayment, DUser } from '../interfaces/database.model';
+import { Room, Debt, User } from '../interfaces/main.model';
 import { SummarizablePayment, SummarizedMember } from '../interfaces/special-types.model';
 import { UploadablePayment, UploadableRoom, UploadableMembers,
   UpdatablePayment, RoomDetails, FullRoomData, CurrencyUpdate,
@@ -330,6 +330,72 @@ export class Controller {
     });
   }
 
+  public addNewUser(data: { firstName: string, lastName: string, email: string, password: string }): Promise<Response<string>> {
+    let parameter;
+    if ((parameter = this.check(data, 'firstName', 'lastName', 'email', 'password')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer();
+        const user: DUser = {
+          id: this.generateId(),
+          firstname: data.firstName,
+          lastname: data.lastName,
+          email: data.email,
+          password: data.password
+        };
+        const res: Response<string> = await this.dataLayer.addNewUser(user);
+        resolve(res);
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
+  }
+
+  public loginWithUser(data: { email: string, password: string }): Promise<Response<any>> {
+    let parameter;
+    if ((parameter = this.check(data, 'email', 'password')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer();
+        const user: DUser = await this.dataLayer.getUserData(data.email);
+        if (user.password !== data.password)
+          throw new ServerError('Logging in failed');
+        const userData = { firstName: user.firstname, lastName: user.lastname, email: user.email };
+        resolve(new Success(userData));
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
+  }
+
+  public getUsersRooms(data: { email: string}): Promise<Response<any>> {
+    let parameter;
+    if ((parameter = this.check(data, 'email')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer();
+        const rooms = await this.dataLayer.getUsersRooms(data.email);
+        resolve(new Success(rooms));
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
+  }
+
+  public getUsersDebts(data: { email: string}): Promise<Response<any>> {
+    let parameter;
+    if ((parameter = this.check(data, 'email')) !== null)
+      return Promise.reject(new ParameterNotProvided(parameter));
+    return new Promise(async (resolve, reject) => {
+      try {
+        this.dataLayer = new DataLayer();
+        const rooms = await this.dataLayer.getUsersDebts(data.email);
+        resolve(new Success(rooms));
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
+  }
+
   private getRelatedPayments(payment: DPayment, members: DMember[]): DPayment[] {
     if (payment.included.length === members.length) return [];
     const payments: DPayment[] = [];
@@ -440,7 +506,7 @@ export class Controller {
 
   // #################### QUIZLET CONTROLLER METHODS ##########################
 
-  public loginWithUser(data: {userName: string}): Promise<any> {
+  public loginWithUserQuizlet(data: {userName: string}): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
         this.dataLayer = new DataLayer(true);

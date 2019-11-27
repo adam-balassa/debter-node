@@ -13,6 +13,7 @@ export interface Room extends Identified {
 export interface Member extends Identified {
   id: string;
   name: string;
+  userId?: string;
 }
 
 export interface Payment extends Identified {
@@ -35,4 +36,12 @@ export interface Debt {
   for: string;
   from: string;
   arranged: boolean;
+}
+
+export interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password?: string;
 }

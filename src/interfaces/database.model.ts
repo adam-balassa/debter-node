@@ -39,3 +39,11 @@ export interface DDebt {
   currency: string;
   arranged: boolean;
 }
+
+export interface DUser {
+  id: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  password: string;
+}

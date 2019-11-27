@@ -111,11 +111,46 @@ export class Routes {
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
+    this.router.post('/register', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.addNewUser(
+        { firstName: req.body.firstName, lastName: req.body.lastName, email: req.body.email, password: req.body.password }
+      )
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
+    this.router.patch('/login', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.loginWithUser(
+        { email: req.body.email, password: req.body.password }
+      )
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
+    this.router.get('/user/rooms/:email', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.getUsersRooms(
+        { email: req.params.email }
+      )
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
+    this.router.get('/user/debts/:email', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.getUsersDebts(
+        { email: req.params.email }
+      )
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
 
     // ############ QUIZLET ROUTES #################
     this.router.post('/quizlet', (req: Request, res: Response) => {
       const controller = new Controller();
-      controller.loginWithUser({userName: req.body.userName})
+      controller.loginWithUserQuizlet({userName: req.body.userName})
       .then(result => { res.status(result.statusCode).send(result); })
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
