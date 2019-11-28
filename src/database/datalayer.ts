@@ -1,6 +1,6 @@
 import { Database } from './database';
 import { DRoom, DDetail, DMember, DPayment, DDebt, DUser } from '../interfaces/database.model';
-import { Room, Member, Payment, Debt } from '../interfaces/main.model';
+import { Room, Member, Payment, Debt, User } from '../interfaces/main.model';
 import { Success, Response, DataError } from '../interfaces/exceptions.model';
 import { FullRoomData } from '../interfaces/shared.model';
 import { SummarizablePayment } from '../interfaces/special-types.model';
@@ -136,8 +136,12 @@ export class DataLayer {
         const dPayments: DPayment[] = await this.getAllPayments(dMembers);
         const dDebts: DDebt[] = await this.getDebts(dMembers.map<string>((member): string => member.id as string));
 
+        const dUsers: DUser[] = await this.getRoomUsers(dMembers);
+        const users: User[] = dUsers.map<User>(member => (
+          { firstName: member.firstname, lastName: member.lastname, email: member.email, id: member.id }));
+
         const members: Member[] = dMembers.map<Member>((member: DMember): Member => {
-          return { id: member.id as string, name: member.alias };
+          return { id: member.id as string, name: member.alias, userId: (member.user_id === null ? null : member.user_id as string) };
         });
         const payments: Payment[] = dPayments.map<Payment>((payment: DPayment): Payment => {
           return { id: payment.id as string, value: payment.value, currency: payment.currency,
@@ -147,7 +151,29 @@ export class DataLayer {
         const debts: Debt[] = dDebts.map<Debt>((debt: DDebt): Debt => {
           return { value: debt.value, currency: debt.currency, for: debt.to_member, from: debt.from_member, arranged: debt.arranged };
         });
-        resolve({members, payments, debts});
+        resolve({members, payments, debts, users});
+      }
+      catch (error) {
+        console.log(error);
+        reject(error);
+      }
+    });
+  }
+
+  public getRoomUsers(members: DMember[]): Promise<DUser[]> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const userIds: string[] = [];
+        members.forEach(member => {
+          if (member.user_id != null)
+            userIds.push(member.user_id);
+        });
+        const result = await this.database.runQuery(
+          `select Users.id, firstname, lastname, email from Users
+              where Users.id in (${new Array(userIds.length).fill('?').join(',')}) `,
+          ...userIds
+        );
+        resolve(result);
       }
       catch (error) {
         console.log(error);
@@ -287,7 +313,7 @@ export class DataLayer {
 
   public getMembers(roomKey: string): Promise<DMember[]> {
     return this.database.runQuery(
-      `SELECT Members.id as id, Rooms.id as room_id, alias
+      `SELECT Members.id as id, Rooms.id as room_id, user_id, alias
       FROM Members
       INNER JOIN Rooms ON room_id = Rooms.id
       WHERE room_key = ?

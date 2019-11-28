@@ -13,7 +13,7 @@ export interface Room extends Identified {
 export interface Member extends Identified {
   id: string;
   name: string;
-  userId?: string;
+  userId: string | null;
 }
 
 export interface Payment extends Identified {

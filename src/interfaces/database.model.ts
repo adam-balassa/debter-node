@@ -16,6 +16,7 @@ export interface DMember {
   id?: string;
   room_id?: string;
   alias: string;
+  user_id?: string;
 }
 
 export interface DPayment {
@@ -45,5 +46,5 @@ export interface DUser {
   firstname: string;
   lastname: string;
   email: string;
-  password: string;
+  password?: string;
 }

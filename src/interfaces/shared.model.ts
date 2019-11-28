@@ -1,3 +1,5 @@
+import { User } from "./main.model";
+
 export interface UploadablePayment {
   roomKey: string;
   value: number;
@@ -56,6 +58,7 @@ export interface FullRoomData {
   members: {
     id: string;
     name: string;
+    userId: string | null;
   }[];
   debts: {
     value: number;
@@ -64,6 +67,7 @@ export interface FullRoomData {
     from: string;
     arranged: boolean;
   }[];
+  users: User[];
 }
 
 export interface UploadableMember {
