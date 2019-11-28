@@ -418,16 +418,20 @@ export class DataLayer {
     });
   }
 
-  public getUsersDebts(email: string): Promise<{name: string, id: string, currency: string, value: number}[]> {
+  public getUsersDebts(email: string): Promise<{name: string, id: string, currency: string, value: number, roomName: string}[]> {
     return new Promise((resolve, reject) => {
       this.database.runQuery(
-        `select m2.alias as name, m2.id, Debts.currency, Debts.value from Debts
+        `select m2.alias as name, m2.id, Debts.currency, Debts.value, Details.name as roomName from Debts
         inner join Members m1
           on Debts.from_member = m1.id
         inner join Members m2
           on Debts.to_member = m2.id
         inner join Users
           on Users.id = m1.user_id
+        inner join Rooms
+          on Rooms.id = m1.room_id
+        inner join Details
+          on Details.room_id = Rooms.id
         where email = ? and arranged = 0`,
         email
       ).then((result) => {
