@@ -444,10 +444,18 @@ export class DataLayer {
     });
   }
 
-  public getUsersDebts(email: string): Promise<{name: string, id: string, currency: string, value: number, roomName: string}[]> {
+  public getUsersDebts(email: string): Promise<any[]> {
     return new Promise((resolve, reject) => {
       this.database.runQuery(
-        `select m2.alias as name, m2.id, Debts.currency, Debts.value, Details.name as roomName from Debts
+        `select
+          m1.id as fromMember,
+          m2.id as toMember,
+          m2.alias as name,
+          m2.id, Debts.currency,
+          Debts.value,
+          Details.name as roomName,
+          Rooms.roomKey
+        from Debts
         inner join Members m1
           on Debts.from_member = m1.id
         inner join Members m2
