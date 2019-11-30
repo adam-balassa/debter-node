@@ -64,8 +64,6 @@ export class Routes {
 
     this.router.post('/payment', (req: Request, res: Response) => {
       const controller = new Controller();
-      console.log(req.body);
-
       controller.uploadPayment({
         roomKey: req.body.roomKey,
         value: req.body.value,
