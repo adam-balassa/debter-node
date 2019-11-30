@@ -76,6 +76,12 @@ export class Routes {
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
+    this.router.get('/users', (req: Request, res: Response) => {
+      new Controller().getUsers()
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
     this.router.delete('/room/:roomKey/payment/:paymentId', (req: Request, res: Response) => {
       const controller = new Controller();
       controller.deletePayment({ paymentId: req.params.paymentId, roomKey: req.params.roomKey })

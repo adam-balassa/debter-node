@@ -476,6 +476,20 @@ export class DataLayer {
     });
   }
 
+  public getUsers(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.database.runQuery(
+        `select email, firstname as firstName, lastname as lastName
+        from Users
+        where 1`
+      ).then((result) => {
+        if (result.length < 1) throw new DataError('Users not found');
+        resolve(result);
+      })
+      .catch(error => reject(new DataError(error.message)));
+    });
+  }
+
   private parseDate(date: Date): string {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ` +
       `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}:${('0' + date.getSeconds()).slice(-2)}`;

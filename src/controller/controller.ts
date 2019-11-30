@@ -396,6 +396,10 @@ export class Controller {
     });
   }
 
+  public getUsers(): Promise<Response<any[]>>  {
+    return new DataLayer().getUsers().then<Response<any[]>>(users => new Success(users));
+  }
+
   private getRelatedPayments(payment: DPayment, members: DMember[]): DPayment[] {
     if (payment.included.length === members.length) return [];
     const payments: DPayment[] = [];
