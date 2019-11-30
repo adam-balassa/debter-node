@@ -451,10 +451,10 @@ export class DataLayer {
           m1.id as fromMember,
           m2.id as toMember,
           m2.alias as name,
-          m2.id, Debts.currency,
+          Debts.currency,
           Debts.value,
           Details.name as roomName,
-          Rooms.roomKey
+          Rooms.room_key as roomKey
         from Debts
         inner join Members m1
           on Debts.from_member = m1.id
