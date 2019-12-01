@@ -34,6 +34,13 @@ export class Routes {
       .catch(error => { res.status(error.statusCode || 500).send(error); });
     });
 
+    this.router.post('/room/users', (req: Request, res: Response) => {
+      const controller = new Controller();
+      controller.addUsersToRoom({ roomKey: req.body.roomKey, users: req.body.users })
+      .then(result => { res.status(result.statusCode).send(result); })
+      .catch(error => { res.status(error.statusCode || 500).send(error); });
+    });
+
     this.router.patch('/room/members', (req: Request, res: Response) => {
       const controller = new Controller();
       controller.addNewMember({ roomKey: req.body.roomKey, name: req.body.name, payments: req.body.payments })

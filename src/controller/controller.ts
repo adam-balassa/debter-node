@@ -66,6 +66,23 @@ export class Controller {
     );
   }
 
+  public addUsersToRoom(data: {roomKey: string, users: string[]}): Promise<Response<string>> {
+    this.dataLayer = new DataLayer(true);
+    let param;
+    if ((param = this.check(data, 'roomKey', 'users')) !== null)
+      return Promise.reject(new ParameterNotProvided(param));
+    if (data.users.length < 2)
+      return Promise.reject(new ServerError('Must provide at least 2 members'));
+
+    const members: DMember[] = [];
+    for (const userId of data.users)
+      members.push({ id: this.generateId(), alias: '-', user_id: userId });
+
+    return this.dataLayer.addMembersToRoom(members, data.roomKey).finally(
+      () => { this.dataLayer.close(); }
+    );
+  }
+
   public loginRoom(data: { roomKey: string }): Promise<Response<RoomDetails>> {
     this.dataLayer = new DataLayer(false);
     if (this.check(data, 'roomKey') !== null)

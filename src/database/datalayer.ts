@@ -56,16 +56,16 @@ export class DataLayer {
         const roomId = result[0].id;
         if (!roomId) throw new DataError('Invalid roomId');
 
-        this.database.beginTransaction();
-        const promises: Promise<any>[] = [];
-        for (const member of members)
-          promises.push(this.database.runQuery(
-            'INSERT INTO Members SET id = ?, room_id = ?, user_id = NULL, alias = ?', // could do better
-            member.id, roomId, member.alias
-          ));
-        Promise.all(promises)
-          .then(() => resolve(new Success('Members successfully added')))
-          .catch(error => { throw error; });
+        const membersString: any[] = [];
+        members.forEach(m => { membersString.push(
+            ...[m.id, roomId, m.user_id || null, m.alias]
+            ); });
+
+        this.database.runQuery(
+          `INSERT INTO Members(id, room_id, user_id, alias)
+          VALUES ${new Array(members.length).fill(`(?,?,(SELECT id FROM Users WHERE email = ?),?)`).join(',')}`, // could do better
+          ...membersString
+        ).then(() => resolve(new Success('Members successfully added')));
       }
       catch (error) {
         if (error instanceof Error)
