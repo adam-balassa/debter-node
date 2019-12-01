@@ -36,6 +36,7 @@ export class Routes {
 
     this.router.post('/room/users', (req: Request, res: Response) => {
       const controller = new Controller();
+      console.log(req.body);
       controller.addUsersToRoom({ roomKey: req.body.roomKey, users: req.body.users })
       .then(result => { res.status(result.statusCode).send(result); })
       .catch(error => { res.status(error.statusCode || 500).send(error); });
