@@ -57,13 +57,17 @@ export class DataLayer {
         if (!roomId) throw new DataError('Invalid roomId');
 
         const membersString: any[] = [];
+
+        const users = await this.database.runQuery('SELECT email, id, firstname as firstName FROM Users');
         members.forEach(m => { membersString.push(
-            ...[m.id, roomId, m.user_id || null, m.alias]
-            ); });
+          ...[m.id, roomId, m.user_id == null ? null : users.find((u: any) => u.email === m.user_id).id,
+            (m.user_id == null ? m.alias : users.find((u: any) => u.email === m.user_id).firstName)]
+          ); });
+
 
         this.database.runQuery(
           `INSERT INTO Members(id, room_id, user_id, alias)
-          VALUES ${new Array(members.length).fill(`(?,?,(SELECT id FROM Users WHERE email = ?),?)`).join(',')}`, // could do better
+          VALUES ${new Array(members.length).fill(`(?,?,?,?)`).join(',')}`, // could do better
           ...membersString
         ).then(() => resolve(new Success('Members successfully added')));
       }
