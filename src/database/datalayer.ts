@@ -441,7 +441,6 @@ export class DataLayer {
           where email = ?`,
         email
       ).then((result) => {
-        if (result.length < 1) throw new DataError('User not found');
         resolve(result.map((res: any) => ({room_key: res.room_key as string, name: res.name as string})));
       })
       .catch(error => reject(new DataError(error.message)));
