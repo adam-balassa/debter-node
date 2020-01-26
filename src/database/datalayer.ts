@@ -172,6 +172,8 @@ export class DataLayer {
           if (member.user_id != null)
             userIds.push(member.user_id);
         });
+        if (userIds.length === 0)
+          return resolve([]);
         const result = await this.database.runQuery(
           `select Users.id, firstname, lastname, email from Users
               where Users.id in (${new Array(userIds.length).fill('?').join(',')}) `,
