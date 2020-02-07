@@ -433,7 +433,7 @@ export class DataLayer {
   public getUsersRooms(email: string): Promise<{room_key: string, name: string}[]> {
     return new Promise((resolve, reject) => {
       this.database.runQuery(
-        `select room_key, name, email from Rooms
+        `select room_key, name, email, last_modified from Rooms
           inner join Details
             on Details.room_id = Rooms.id
           inner join Members
@@ -443,7 +443,9 @@ export class DataLayer {
           where email = ?`,
         email
       ).then((result) => {
-        resolve(result.map((res: any) => ({room_key: res.room_key as string, name: res.name as string})));
+        resolve(result
+          .sort((a: any, b: any) => b.last_modified - a.last_modified)
+          .map((res: any) => ({room_key: res.room_key as string, name: res.name as string})));
       })
       .catch(error => reject(new DataError(error.message)));
     });
