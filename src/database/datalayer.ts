@@ -351,7 +351,8 @@ export class DataLayer {
           and Payments.related_to is null`,
 
           ...members.map(member => member.id)
-        );
+        ).then (payments => payments.map((payment: any) => ({...payment, date: new Date(parseInt(payment.date))})));
+
         resolve(res as DPayment[]);
       }
       catch (err) {
