@@ -1,7 +1,8 @@
 import { ConnectionConfig, MysqlError, Connection, createConnection } from 'mysql';
 import { DatabaseError } from '../interfaces/exceptions.model';
+import { Database } from './database.model';
 
-export class Database {
+export class MySQLDatabase implements Database {
   readonly mysqlConfig: ConnectionConfig = {
     host: 'remotemysql.com',
     database: 'BkMfl7pWj2',
@@ -17,14 +18,31 @@ export class Database {
     this.connection = createConnection(this.mysqlConfig);
   }
 
-  public beginTransaction() {
-    this.isTransactionRunning = true;
-    this.connection.beginTransaction(error => {
-      if (error) throw error;
+  public beginTransaction(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.isTransactionRunning = true;
+      this.connection.beginTransaction(error => {
+        if (error) reject(error);
+        else resolve();
+      });
     });
   }
 
-  public runQuery(query: string, ...parameters: any[]): Promise<any> {
+  public query(query: string, ...parameters: any[]): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.connection.query(query, parameters, (error: any, result: any, fields: any) => {
+        if (error) {
+          console.log(error);
+          this.connection.rollback();
+          this.isTransactionRunning = false;
+          reject(error);
+        }
+        else resolve(result);
+      });
+    });
+  }
+
+  public run(query: string, ...parameters: any[]): Promise<any> {
     return new Promise((resolve, reject) => {
       this.connection.query(query, parameters, (error: any, result: any, fields: any) => {
         if (error) {

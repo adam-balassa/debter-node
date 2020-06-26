@@ -8,9 +8,6 @@ import { UploadablePayment, UploadableRoom, UploadableMembers,
   RoundingUpdate, UploadableMember, DeletableMember } from '../interfaces/shared.model';
 import { DebtArranger } from './debt-arranger';
 import { Converter } from './converter';
-import { Server } from 'net';
-import { stringify } from 'querystring';
-
 
 export class Controller {
 
@@ -19,9 +16,9 @@ export class Controller {
   public constructor() { }
 
   public createNewRoom(data: UploadableRoom): Promise<Response<RoomDetails>> {
-    this.dataLayer = new DataLayer(true);
     return new Promise(async (resolve, reject) => {
       try {
+        this.dataLayer = await DataLayer.create(true);
         const roomKey = await this.generateRoomKey();
         let param;
         if ((param = this.check(data, 'roomName')) !== null)
@@ -50,8 +47,8 @@ export class Controller {
     });
   }
 
-  public addMembersToRoom(data: UploadableMembers): Promise<Response<string>> {
-    this.dataLayer = new DataLayer(true);
+  public async addMembersToRoom(data: UploadableMembers): Promise<Response<string>> {
+    this.dataLayer = await DataLayer.create(true);
     let param;
     if ((param = this.check(data, 'roomKey', 'members')) !== null)
       return Promise.reject(new ParameterNotProvided(param));
@@ -66,8 +63,8 @@ export class Controller {
     );
   }
 
-  public addUsersToRoom(data: {roomKey: string, users: string[]}): Promise<Response<string>> {
-    this.dataLayer = new DataLayer(true);
+  public async addUsersToRoom(data: {roomKey: string, users: string[]}): Promise<Response<string>> {
+    this.dataLayer = await DataLayer.create(true);
     let param;
     if ((param = this.check(data, 'roomKey', 'users')) !== null)
       return Promise.reject(new ParameterNotProvided(param));
@@ -84,10 +81,10 @@ export class Controller {
   }
 
   public loginRoom(data: { roomKey: string }): Promise<Response<RoomDetails>> {
-    this.dataLayer = new DataLayer(false);
     if (this.check(data, 'roomKey') !== null)
       return Promise.reject(new ParameterNotProvided('roomKey'));
     return new Promise(async (resolve, reject) => {
+      this.dataLayer = await DataLayer.create();
       try {
         const room: Room = await this.dataLayer.getDetails(data.roomKey);
         const { id, ...details } = room;
@@ -141,7 +138,6 @@ export class Controller {
   }
 
   public uploadPayment(data: UploadablePayment): Promise<Response<string>> {
-    this.dataLayer = new DataLayer(true);
     let missing = null;
     if ((missing = this.check(data, 'value', 'currency', 'note', 'memberId', 'included', 'roomKey')) !== null)
       return Promise.reject(new ParameterNotProvided(missing));
@@ -150,6 +146,7 @@ export class Controller {
 
     return new Promise(async (resolve, reject) => {
       try {
+        this.dataLayer = await DataLayer.create(true);
         const members = await this.dataLayer.getMembers(data.roomKey);
         const debts: DDebt[] = await this.dataLayer.getDebts(members.map<string>(member => member.id as string));
         const { rounding } = await this.dataLayer.getDetails(data.roomKey);
@@ -198,12 +195,12 @@ export class Controller {
   }
 
   public deletePayment(data: UpdatablePayment): Promise<Response<string>> {
-    this.dataLayer = new DataLayer(true);
     let parameter;
     if ((parameter = this.check(data, 'paymentId', 'roomKey')) !== null)
       return Promise.reject(new ParameterNotProvided(parameter));
     return new Promise(async (resolve, reject) => {
       try {
+        this.dataLayer = await DataLayer.create(true);
         await this.dataLayer.deletePayment(data.paymentId);
         await this.refreshDebts(data.roomKey);
         resolve(new Success('Payment successfully deleted'));
@@ -218,12 +215,12 @@ export class Controller {
   }
 
   public revivePayment(data: UpdatablePayment): Promise<Response<string>> {
-    this.dataLayer = new DataLayer(true);
     let parameter;
     if ((parameter = this.check(data, 'paymentId', 'roomKey')) !== null)
       return Promise.reject(new ParameterNotProvided(parameter));
     return new Promise(async (resolve, reject) => {
       try {
+        this.dataLayer = await DataLayer.create(true);
         await this.dataLayer.revivePayment(data.paymentId);
         await this.refreshDebts(data.roomKey);
         resolve(new Success('Payment successfully revived'));
@@ -257,19 +254,19 @@ export class Controller {
     let parameter;
     if ((parameter = this.check(data, 'rounding', 'roomKey')) !== null)
       return Promise.reject(new ParameterNotProvided(parameter));
-      return new Promise(async (resolve, reject) => {
-        try {
-          const result = await this.dataLayer.setRounding(data.roomKey, data.rounding);
-          await this.refreshDebts(data.roomKey);
-          resolve(result);
-        } catch (error) { reject(error); }
-        finally { this.dataLayer.close(); }
-      });
+    return new Promise(async (resolve, reject) => {
+      try {
+        const result = await this.dataLayer.setRounding(data.roomKey, data.rounding);
+        await this.refreshDebts(data.roomKey);
+        resolve(result);
+      } catch (error) { reject(error); }
+      finally { this.dataLayer.close(); }
+    });
   }
 
   public refreshAllDebts(): Promise<Response> {
     return new Promise(async (resolve, reject) => {
-      this.dataLayer = new DataLayer(true);
+      this.dataLayer = await DataLayer.create(true);
       try {
         const roomKeys = await this.dataLayer.getAllRooms();
         for (const roomKey of roomKeys.map((key: any) => key.room_key)) {
@@ -287,7 +284,7 @@ export class Controller {
       return Promise.reject(new ParameterNotProvided(parameter));
     return new Promise(async (resolve, reject) => {
       try {
-        this.dataLayer = new DataLayer(true);
+        this.dataLayer = await DataLayer.create(true);
         const memberId = this.generateId();
         const members: DMember[] = await this.dataLayer.getMembers(data.roomKey);
         const payments: DPayment[] = (await this.dataLayer.getAllPayments(members));
@@ -459,6 +456,7 @@ export class Controller {
         const summarizedPayments = await this.summarizePayments(roomData.data, defaultCurrency);
         const debtArranger = new DebtArranger(summarizedPayments, rounding);
         const debts = debtArranger.debts;
+
         const dDebts: DDebt[] = debts.map<DDebt>(debt => ({
           from_member: debt.from,
           to_member: debt.for,
@@ -530,7 +528,7 @@ export class Controller {
   public loginWithUserQuizlet(data: {userName: string}): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
-        this.dataLayer = new DataLayer(true);
+        this.dataLayer = await DataLayer.create(true);
         if (!data.userName || data.userName.length === 0) reject(new ServerError('Error'));
         const users: any[] = await this.dataLayer.getQuizletUsers();
         let user;
@@ -557,7 +555,7 @@ export class Controller {
     cards: {index: number, first: string, second: string, third: string}[] }): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
-        this.dataLayer = new DataLayer(true);
+        this.dataLayer = await DataLayer.create(true);
         const setId = this.generateId();
         await this.dataLayer.addQuizletSet(setId, data.title, data.userId);
         await this.dataLayer.addQuizletCards(data.cards, setId);
@@ -574,7 +572,7 @@ export class Controller {
   public editSet(data: {setId: string, cards: {index: number, first: string, second: string, third: string}[] }): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
-        this.dataLayer = new DataLayer(true);
+        this.dataLayer = await DataLayer.create(true);
         await this.dataLayer.deleteCardsFromSet(data.setId);
         await this.dataLayer.addQuizletCards(data.cards, data.setId);
         resolve(new Success(''));
@@ -590,7 +588,7 @@ export class Controller {
   public addNewCompletedChallenge(data: {challengeId: string}): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
-        this.dataLayer = new DataLayer(true);
+        this.dataLayer = await DataLayer.create(true);
         const challenges: string[] = await this.dataLayer.getCompletedChallenges();
         if (challenges.includes(data.challengeId)) return resolve(new Success(''));
 
